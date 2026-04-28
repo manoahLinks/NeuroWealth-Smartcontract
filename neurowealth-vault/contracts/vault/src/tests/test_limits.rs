@@ -1,6 +1,7 @@
 //! Tests for deposit limits and caps
 
 use super::utils::*;
+use crate::{DataKey, DEFAULT_MIN_DEPOSIT};
 use soroban_sdk::{testutils::Address as _, Address, Env};
 
 #[test]
@@ -154,4 +155,40 @@ fn test_user_deposit_cap_zero_means_unlimited() {
     mint_and_deposit(&env, &client, &usdc_token, &user, amount);
 
     assert_eq!(client.get_shares(&user), amount);
+}
+
+#[test]
+fn test_get_min_deposit_uses_default_when_key_missing() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    env.as_contract(&contract_id, || {
+        env.storage().instance().remove(&DataKey::MinDeposit);
+    });
+
+    assert_eq!(client.get_min_deposit(), DEFAULT_MIN_DEPOSIT);
+}
+
+#[test]
+#[should_panic(expected = "vault: below minimum deposit")]
+fn test_deposit_uses_default_minimum_when_key_missing() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner, usdc_token) = setup_vault_with_token(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+    let token_client = TestTokenClient::new(&env, &usdc_token);
+
+    env.as_contract(&contract_id, || {
+        env.storage().instance().remove(&DataKey::MinDeposit);
+    });
+
+    let user = Address::generate(&env);
+    let below_default_min = DEFAULT_MIN_DEPOSIT - 1;
+    token_client.mint(&user, &below_default_min);
+
+    client.deposit(&user, &below_default_min);
 }

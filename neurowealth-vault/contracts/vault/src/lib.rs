@@ -439,6 +439,29 @@ struct BlendRequest {
 }
 
 const BLEND_REQUEST_TYPE_SUPPLY: u32 = 0;
+const DEFAULT_TVL_CAP: i128 = 100_000_000_000_i128;
+const DEFAULT_USER_DEPOSIT_CAP: i128 = 10_000_000_000_i128;
+const DEFAULT_MIN_DEPOSIT: i128 = 1_000_000_i128;
+const DEFAULT_MAX_DEPOSIT: i128 = 10_000_000_000_i128;
+
+pub(crate) const TOPIC_INIT: Symbol = symbol_short!("init");
+pub(crate) const TOPIC_DEPOSIT: Symbol = symbol_short!("deposit");
+pub(crate) const TOPIC_WITHDRAW: Symbol = symbol_short!("withdraw");
+pub(crate) const TOPIC_REBALANCE: Symbol = symbol_short!("rebalance");
+pub(crate) const TOPIC_PAUSED: Symbol = symbol_short!("paused");
+pub(crate) const TOPIC_UNPAUSED: Symbol = symbol_short!("unpaused");
+pub(crate) const TOPIC_EMERGENCY_PAUSED: Symbol = symbol_short!("emerg");
+pub(crate) const TOPIC_TVL_CAP_UPDATED: Symbol = symbol_short!("tvl_cap");
+pub(crate) const TOPIC_USER_CAP_UPDATED: Symbol = symbol_short!("user_cap");
+pub(crate) const TOPIC_LIMITS_UPDATED: Symbol = symbol_short!("l_upd");
+pub(crate) const TOPIC_AGENT_UPDATED: Symbol = symbol_short!("agent");
+pub(crate) const TOPIC_OWNERSHIP_INITIATED: Symbol = symbol_short!("own_init");
+pub(crate) const TOPIC_OWNERSHIP_TRANSFERRED: Symbol = symbol_short!("own_xfer");
+pub(crate) const TOPIC_OWNERSHIP_CANCELLED: Symbol = symbol_short!("own_cncl");
+pub(crate) const TOPIC_ASSETS_UPDATED: Symbol = symbol_short!("assets");
+pub(crate) const TOPIC_UPGRADED: Symbol = symbol_short!("upgraded");
+pub(crate) const TOPIC_BLEND_SUPPLY: Symbol = symbol_short!("blend_sup");
+pub(crate) const TOPIC_BLEND_WITHDRAW: Symbol = symbol_short!("blend_wd");
 
 impl BlendPoolClient {
     /// Deposits assets to the Blend pool.
@@ -638,17 +661,17 @@ impl NeuroWealthVault {
         env.storage().instance().set(&DataKey::TvLCap, &tvl_cap);
         env.storage()
             .instance()
-            .set(&DataKey::UserDepositCap, &10_000_000_000_i128); // 10K USDC default
+            .set(&DataKey::UserDepositCap, &DEFAULT_USER_DEPOSIT_CAP);
         env.storage()
             .instance()
-            .set(&DataKey::MinDeposit, &1_000_000_i128); // 1 USDC default
+            .set(&DataKey::MinDeposit, &DEFAULT_MIN_DEPOSIT);
         env.storage()
             .instance()
-            .set(&DataKey::MaxDeposit, &10_000_000_000_i128); // 10K USDC default
+            .set(&DataKey::MaxDeposit, &DEFAULT_MAX_DEPOSIT);
         env.storage().instance().set(&DataKey::Version, &1_u32);
 
         env.events().publish(
-            (symbol_short!("init"),),
+            (TOPIC_INIT,),
             VaultInitializedEvent {
                 agent: agent.clone(),
                 usdc_token: usdc_token.clone(),
@@ -758,7 +781,7 @@ impl NeuroWealthVault {
             .set(&DataKey::TotalAssets, &(total_assets.checked_add(amount).expect("vault: total assets overflow")));
 
         env.events().publish(
-            (symbol_short!("deposit"),),
+            (TOPIC_DEPOSIT,),
             DepositEvent {
                 user,
                 amount,
@@ -925,7 +948,7 @@ impl NeuroWealthVault {
         token_client.transfer(&env.current_contract_address(), &user, &usdc_to_return);
 
         env.events().publish(
-            (symbol_short!("withdraw"),),
+            (TOPIC_WITHDRAW,),
             WithdrawEvent {
                 user,
                 amount: usdc_to_return,
@@ -1078,11 +1101,11 @@ impl NeuroWealthVault {
         token_client.transfer(&env.current_contract_address(), &user, &usdc_to_return);
 
         env.events().publish(
-            (symbol_short!("withdraw"),),
+            (TOPIC_WITHDRAW,),
             WithdrawEvent {
                 user,
                 amount: usdc_to_return,
-                shares: user_shares,
+                shares: shares_to_burn,
             },
         );
 
@@ -1163,7 +1186,7 @@ impl NeuroWealthVault {
             }
 
             env.events().publish(
-                (symbol_short!("rebalance"),),
+                (TOPIC_REBALANCE,),
                 RebalanceEvent {
                     protocol,
                     expected_apy,
@@ -1177,7 +1200,7 @@ impl NeuroWealthVault {
                 .instance()
                 .set(&DataKey::CurrentProtocol, &symbol_short!("none"));
             env.events().publish(
-                (symbol_short!("rebalance"),),
+                (TOPIC_REBALANCE,),
                 RebalanceEvent {
                     protocol,
                     expected_apy,
@@ -1228,8 +1251,7 @@ impl NeuroWealthVault {
         env.storage().instance().set(&DataKey::Paused, &true);
 
         let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
-        env.events()
-            .publish((symbol_short!("paused"),), VaultPausedEvent { owner });
+        env.events().publish((TOPIC_PAUSED,), VaultPausedEvent { owner });
     }
 
     /// Unpauses the vault, re-enabling deposits and withdrawals.
@@ -1268,7 +1290,7 @@ impl NeuroWealthVault {
 
         let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
         env.events()
-            .publish((symbol_short!("unpaused"),), VaultUnpausedEvent { owner });
+            .publish((TOPIC_UNPAUSED,), VaultUnpausedEvent { owner });
     }
 
     /// Emergency pause function that immediately halts all operations.
@@ -1302,7 +1324,7 @@ impl NeuroWealthVault {
 
         let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
         env.events()
-            .publish((symbol_short!("emerg"),), EmergencyPausedEvent { owner });
+            .publish((TOPIC_EMERGENCY_PAUSED,), EmergencyPausedEvent { owner });
     }
 
     // ==========================================================================
@@ -1343,7 +1365,7 @@ impl NeuroWealthVault {
         env.storage().instance().set(&DataKey::TvLCap, &cap);
 
         env.events().publish(
-            (symbol_short!("tvl_cap"),),
+            (TOPIC_TVL_CAP_UPDATED,),
             TvlCapUpdatedEvent {
                 old_cap: old_tvl_cap,
                 new_cap: cap,
@@ -1389,7 +1411,7 @@ impl NeuroWealthVault {
         env.storage().instance().set(&DataKey::UserDepositCap, &cap);
 
         env.events().publish(
-            (symbol_short!("user_cap"),),
+            (TOPIC_USER_CAP_UPDATED,),
             UserDepositCapUpdatedEvent {
                 old_cap: old_user_cap,
                 new_cap: cap,
@@ -1447,7 +1469,7 @@ impl NeuroWealthVault {
         env.storage().instance().set(&DataKey::TvLCap, &max);
 
         env.events().publish(
-            (symbol_short!("limits"),),
+            (TOPIC_LIMITS_UPDATED,),
             LimitsUpdatedEvent {
                 old_min: old_user_cap,
                 new_min: min,
@@ -1489,25 +1511,25 @@ impl NeuroWealthVault {
         Self::require_is_owner(&env);
 
         // Validate limits
-        assert!(min >= 1_000_000, "vault: minimum deposit too low");
+        assert!(min >= DEFAULT_MIN_DEPOSIT, "vault: minimum deposit too low");
         assert!(max >= min, "vault: maximum deposit below minimum");
 
         let old_min = env
             .storage()
             .instance()
             .get(&DataKey::MinDeposit)
-            .unwrap_or(1_000_000);
+            .unwrap_or(DEFAULT_MIN_DEPOSIT);
         let old_max = env
             .storage()
             .instance()
             .get(&DataKey::MaxDeposit)
-            .unwrap_or(10_000_000_000);
+            .unwrap_or(DEFAULT_MAX_DEPOSIT);
 
         env.storage().instance().set(&DataKey::MinDeposit, &min);
         env.storage().instance().set(&DataKey::MaxDeposit, &max);
 
         env.events().publish(
-            (symbol_short!("l_upd"),),
+            (TOPIC_LIMITS_UPDATED,),
             LimitsUpdatedEvent {
                 old_min,
                 new_min: min,
@@ -1553,10 +1575,7 @@ impl NeuroWealthVault {
     /// The current minimum deposit limit in USDC units (7 decimal places)
     pub fn get_min_deposit(env: Env) -> i128 {
         Self::require_initialized(&env);
-        env.storage()
-            .instance()
-            .get(&DataKey::MinDeposit)
-            .unwrap_or(1_000_000) // Default 1 USDC
+        Self::get_min_deposit_internal(&env)
     }
 
     /// Returns the current maximum deposit limit.
@@ -1571,7 +1590,7 @@ impl NeuroWealthVault {
         env.storage()
             .instance()
             .get(&DataKey::MaxDeposit)
-            .unwrap_or(10_000_000_000) // Default 10K USDC
+            .unwrap_or(DEFAULT_MAX_DEPOSIT)
     }
 
     /// Updates the authorized AI agent address.
@@ -1606,7 +1625,7 @@ impl NeuroWealthVault {
         env.storage().instance().set(&DataKey::Agent, &new_agent);
 
         env.events().publish(
-            (symbol_short!("agent"),),
+            (TOPIC_AGENT_UPDATED,),
             AgentUpdatedEvent {
                 old_agent: old_agent.clone(),
                 new_agent: new_agent.clone(),
@@ -1699,7 +1718,7 @@ impl NeuroWealthVault {
             .set(&DataKey::PendingOwner, &new_owner);
 
         env.events().publish(
-            (symbol_short!("own_init"),),
+            (TOPIC_OWNERSHIP_INITIATED,),
             OwnershipTransferInitiatedEvent {
                 current_owner,
                 pending_owner: new_owner,
@@ -1751,7 +1770,7 @@ impl NeuroWealthVault {
         env.storage().instance().remove(&DataKey::PendingOwner);
 
         env.events().publish(
-            (symbol_short!("own_xfer"),),
+            (TOPIC_OWNERSHIP_TRANSFERRED,),
             OwnershipTransferredEvent {
                 old_owner,
                 new_owner,
@@ -1796,7 +1815,7 @@ impl NeuroWealthVault {
         env.storage().instance().remove(&DataKey::PendingOwner);
 
         env.events().publish(
-            (symbol_short!("own_cncl"),),
+            (TOPIC_OWNERSHIP_CANCELLED,),
             OwnershipTransferCancelledEvent {
                 owner,
                 cancelled_pending: pending,
@@ -1925,7 +1944,7 @@ impl NeuroWealthVault {
             .set(&DataKey::TotalAssets, &new_total);
 
         env.events().publish(
-            (symbol_short!("assets"),),
+            (TOPIC_ASSETS_UPDATED,),
             AssetsUpdatedEvent {
                 old_total,
                 new_total,
@@ -1982,7 +2001,7 @@ impl NeuroWealthVault {
         env.deployer().update_current_contract_wasm(new_wasm_hash);
 
         env.events().publish(
-            (symbol_short!("upgraded"),),
+            (TOPIC_UPGRADED,),
             UpgradedEvent {
                 old_version,
                 new_version,
@@ -2014,13 +2033,8 @@ impl NeuroWealthVault {
     /// None
     pub fn get_balance(env: Env, user: Address) -> i128 {
         Self::require_initialized(&env);
-        // Extend TTL for user's share balance to prevent expiration
-        let shares_key = DataKey::Shares(user.clone());
-        if env.storage().persistent().has(&shares_key) {
-            env.storage().persistent().extend_ttl(&shares_key, 100, 100);
-        }
-
-        let shares: i128 = env.storage().persistent().get(&shares_key).unwrap_or(0_i128);
+        let shares_key = DataKey::Shares(user);
+        let shares: i128 = env.storage().persistent().get(&shares_key).unwrap_or(0);
         if shares == 0 {
             return 0;
         }
@@ -2345,12 +2359,17 @@ impl NeuroWealthVault {
     /// - If amount < minimum deposit
     #[inline]
     fn require_minimum_deposit(env: &Env, amount: i128) {
-        let min_deposit: i128 = env
+        let min_deposit: i128 = Self::get_min_deposit_internal(env);
+        assert!(amount >= min_deposit, "vault: below minimum deposit");
+    }
+
+    #[inline]
+    fn get_min_deposit_internal(env: &Env) -> i128 {
+        env
             .storage()
             .instance()
             .get(&DataKey::MinDeposit)
-            .unwrap_or(0_i128);
-        assert!(amount >= min_deposit, "vault: below minimum deposit");
+            .unwrap_or(DEFAULT_MIN_DEPOSIT)
     }
 
     /// Validates that a deposit is within the maximum limit.
@@ -2582,7 +2601,7 @@ impl NeuroWealthVault {
 
         // Emit event for successful supply
         env.events().publish(
-            (symbol_short!("blend_sup"),),
+            (TOPIC_BLEND_SUPPLY,),
             BlendSupplyEvent {
                 asset: usdc_token,
                 amount: supplied,
@@ -2654,7 +2673,7 @@ impl NeuroWealthVault {
 
         // Emit event for withdrawal
         env.events().publish(
-            (symbol_short!("blend_wd"),),
+            (TOPIC_BLEND_WITHDRAW,),
             BlendWithdrawEvent {
                 asset: usdc_token,
                 requested_amount: amount_to_withdraw,

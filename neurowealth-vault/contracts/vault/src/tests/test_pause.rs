@@ -38,13 +38,12 @@ fn test_agent_can_emergency_pause() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let (contract_id, _agent, owner, _usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     assert!(!client.is_paused());
 
-    // In default setup agent == owner, so emergency_pause(&agent) works
-    client.emergency_pause(&agent);
+    client.emergency_pause(&owner);
 
     assert!(client.is_paused(), "Vault should be emergency paused");
 }
@@ -73,11 +72,11 @@ fn test_unauthorized_users_cannot_pause() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, _agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let (contract_id, _agent, owner, _usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
-
     let unauthorized = Address::generate(&env);
 
+    client.emergency_pause(&owner);
     // Fails because unauthorized != stored_owner
     client.pause(&unauthorized);
 }
@@ -162,10 +161,10 @@ fn test_emergency_pause_emits_event() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let (contract_id, _agent, owner, _usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
-    client.emergency_pause(&agent);
+    client.emergency_pause(&owner);
 
     let emergency_events = find_events_by_topic(
         env.events().all(),

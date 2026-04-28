@@ -136,7 +136,7 @@ fn test_owner_can_set_blend_pool() {
     let (contract_id, _agent, owner, _usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
-    let blend_pool = Address::generate(&env);
+    let blend_pool = env.register_contract(None, MockBlendPool);
     client.set_blend_pool(&owner, &blend_pool);
 
     assert_eq!(client.get_blend_pool(), Some(blend_pool));

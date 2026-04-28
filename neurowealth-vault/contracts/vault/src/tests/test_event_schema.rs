@@ -11,7 +11,10 @@ use crate::{
     AgentUpdatedEvent, AssetsUpdatedEvent, BlendSupplyEvent, BlendWithdrawEvent, DepositEvent,
     EmergencyPausedEvent, LimitsUpdatedEvent, OwnershipTransferInitiatedEvent,
     OwnershipTransferredEvent, RebalanceEvent, VaultInitializedEvent, VaultPausedEvent,
-    VaultUnpausedEvent, WithdrawEvent,
+    VaultUnpausedEvent, WithdrawEvent, TOPIC_AGENT_UPDATED, TOPIC_ASSETS_UPDATED,
+    TOPIC_BLEND_SUPPLY, TOPIC_BLEND_WITHDRAW, TOPIC_DEPOSIT, TOPIC_EMERGENCY_PAUSED, TOPIC_INIT,
+    TOPIC_LIMITS_UPDATED, TOPIC_OWNERSHIP_INITIATED, TOPIC_OWNERSHIP_TRANSFERRED, TOPIC_PAUSED,
+    TOPIC_REBALANCE, TOPIC_UNPAUSED, TOPIC_WITHDRAW,
 };
 use soroban_sdk::{symbol_short, testutils::Address as _, Address, Env, TryFromVal};
 
@@ -25,7 +28,7 @@ fn test_event_schema_core_events() {
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     // Test initialization event
-    let init_events = find_events_by_topic(env.events().all(), &env, symbol_short!("init"));
+    let init_events = find_events_by_topic(env.events().all(), &env, TOPIC_INIT);
     assert_eq!(
         init_events.len(),
         1,
@@ -46,7 +49,7 @@ fn test_event_schema_core_events() {
     let deposit_amount = 5_000_000_i128;
     mint_and_deposit(&env, &client, &usdc_token, &user, deposit_amount);
 
-    let deposit_events = find_events_by_topic(env.events().all(), &env, symbol_short!("deposit"));
+    let deposit_events = find_events_by_topic(env.events().all(), &env, TOPIC_DEPOSIT);
     assert_eq!(
         deposit_events.len(),
         1,
@@ -66,7 +69,7 @@ fn test_event_schema_core_events() {
     let withdraw_amount = 2_000_000_i128;
     client.withdraw(&user, &withdraw_amount);
 
-    let withdraw_events = find_events_by_topic(env.events().all(), &env, symbol_short!("withdraw"));
+    let withdraw_events = find_events_by_topic(env.events().all(), &env, TOPIC_WITHDRAW);
     assert_eq!(
         withdraw_events.len(),
         1,
@@ -94,7 +97,7 @@ fn test_event_schema_administrative_events() {
 
     // Test pause event
     client.pause(&owner);
-    let pause_events = find_events_by_topic(env.events().all(), &env, symbol_short!("paused"));
+    let pause_events = find_events_by_topic(env.events().all(), &env, TOPIC_PAUSED);
     assert_eq!(
         pause_events.len(),
         1,
@@ -108,7 +111,7 @@ fn test_event_schema_administrative_events() {
 
     // Test unpause event
     client.unpause(&owner);
-    let unpause_events = find_events_by_topic(env.events().all(), &env, symbol_short!("unpaused"));
+    let unpause_events = find_events_by_topic(env.events().all(), &env, TOPIC_UNPAUSED);
     assert_eq!(
         unpause_events.len(),
         1,
@@ -125,7 +128,7 @@ fn test_event_schema_administrative_events() {
     let new_max = 20_000_000_000_i128;
     client.set_deposit_limits(&new_min, &new_max);
 
-    let limits_events = find_events_by_topic(env.events().all(), &env, symbol_short!("l_upd"));
+    let limits_events = find_events_by_topic(env.events().all(), &env, TOPIC_LIMITS_UPDATED);
     assert_eq!(
         limits_events.len(),
         1,
@@ -158,7 +161,7 @@ fn test_event_schema_rebalance_events() {
     client.rebalance(&protocol, &expected_apy);
 
     let rebalance_events =
-        find_events_by_topic(env.events().all(), &env, symbol_short!("rebalance"));
+        find_events_by_topic(env.events().all(), &env, TOPIC_REBALANCE);
     assert_eq!(
         rebalance_events.len(),
         1,
@@ -187,7 +190,7 @@ fn test_event_schema_ownership_transfer_events() {
 
     // Test ownership transfer initiation
     client.transfer_ownership(&new_owner);
-    let init_events = find_events_by_topic(env.events().all(), &env, symbol_short!("own_init"));
+    let init_events = find_events_by_topic(env.events().all(), &env, TOPIC_OWNERSHIP_INITIATED);
     assert_eq!(
         init_events.len(),
         1,
@@ -203,7 +206,8 @@ fn test_event_schema_ownership_transfer_events() {
 
     // Test ownership transfer completion
     client.accept_ownership(&new_owner);
-    let xfer_events = find_events_by_topic(env.events().all(), &env, symbol_short!("own_xfer"));
+    let xfer_events =
+        find_events_by_topic(env.events().all(), &env, TOPIC_OWNERSHIP_TRANSFERRED);
     assert_eq!(
         xfer_events.len(),
         1,
@@ -231,7 +235,7 @@ fn test_event_schema_agent_update_events() {
 
     // Test agent update event
     client.update_agent(&new_agent);
-    let agent_events = find_events_by_topic(env.events().all(), &env, symbol_short!("agent"));
+    let agent_events = find_events_by_topic(env.events().all(), &env, TOPIC_AGENT_UPDATED);
     assert_eq!(
         agent_events.len(),
         1,
@@ -268,7 +272,7 @@ fn test_event_schema_assets_update_events() {
     token_client.mint(&contract_id, &yield_amount);
     client.update_total_assets(&agent, &new_total, &false, &0);
 
-    let assets_events = find_events_by_topic(env.events().all(), &env, symbol_short!("assets"));
+    let assets_events = find_events_by_topic(env.events().all(), &env, TOPIC_ASSETS_UPDATED);
     assert_eq!(
         assets_events.len(),
         1,
@@ -290,12 +294,12 @@ fn test_event_schema_emergency_events() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let (contract_id, _agent, owner, _usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     // Test emergency pause event
-    client.emergency_pause(&agent);
-    let emerg_events = find_events_by_topic(env.events().all(), &env, symbol_short!("emerg"));
+    client.emergency_pause(&owner);
+    let emerg_events = find_events_by_topic(env.events().all(), &env, TOPIC_EMERGENCY_PAUSED);
     assert_eq!(
         emerg_events.len(),
         1,
@@ -307,7 +311,7 @@ fn test_event_schema_emergency_events() {
         .expect("Should be a valid EmergencyPausedEvent");
 
     // Verify payload structure
-    assert_eq!(emerg_event.owner, agent);
+    assert_eq!(emerg_event.owner, owner);
 }
 
 /// Test that Blend protocol events have correct topics and payload structure
@@ -316,11 +320,11 @@ fn test_event_schema_blend_events() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, _owner, usdc_token, blend_pool) =
+    let (contract_id, _agent, owner, usdc_token, blend_pool) =
         setup_vault_with_token_and_blend(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
-    client.set_blend_pool(&agent, &blend_pool);
+    client.set_blend_pool(&owner, &blend_pool);
 
     let user = Address::generate(&env);
     mint_and_deposit(&env, &client, &usdc_token, &user, 10_000_000_i128);
@@ -328,7 +332,7 @@ fn test_event_schema_blend_events() {
     // Test rebalance to blend (should emit BlendSupplyEvent)
     client.rebalance(&symbol_short!("blend"), &1200_i128);
 
-    let supply_events = find_events_by_topic(env.events().all(), &env, symbol_short!("blend_sup"));
+    let supply_events = find_events_by_topic(env.events().all(), &env, TOPIC_BLEND_SUPPLY);
     assert_eq!(
         supply_events.len(),
         1,
@@ -347,7 +351,7 @@ fn test_event_schema_blend_events() {
     // Test rebalance back to none (should emit BlendWithdrawEvent)
     client.rebalance(&symbol_short!("none"), &500_i128);
 
-    let withdraw_events = find_events_by_topic(env.events().all(), &env, symbol_short!("blend_wd"));
+    let withdraw_events = find_events_by_topic(env.events().all(), &env, TOPIC_BLEND_WITHDRAW);
     assert_eq!(
         withdraw_events.len(),
         1,
@@ -372,7 +376,7 @@ fn test_all_event_topics_schema_compliance() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, owner, usdc_token) = setup_vault_with_token(&env);
+    let (contract_id, _agent, owner, usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     // Generate all possible events
@@ -387,7 +391,7 @@ fn test_all_event_topics_schema_compliance() {
     // Administrative events
     client.pause(&owner);
     client.unpause(&owner);
-    client.emergency_pause(&agent);
+    client.emergency_pause(&owner);
     client.set_deposit_limits(&2_000_000_i128, &20_000_000_000_i128);
 
     // Agent and assets events
@@ -424,7 +428,7 @@ fn test_all_event_topics_schema_compliance() {
     for (topic_symbol, description) in expected_topics.iter() {
         match *topic_symbol {
             "init" => {
-                let events = find_events_by_topic(env.events().all(), &env, symbol_short!("init"));
+                let events = find_events_by_topic(env.events().all(), &env, TOPIC_INIT);
                 assert!(
                     !events.is_empty(),
                     "Expected event topic '{}' for {} not found",
@@ -433,8 +437,7 @@ fn test_all_event_topics_schema_compliance() {
                 );
             }
             "deposit" => {
-                let events =
-                    find_events_by_topic(env.events().all(), &env, symbol_short!("deposit"));
+                let events = find_events_by_topic(env.events().all(), &env, TOPIC_DEPOSIT);
                 assert!(
                     !events.is_empty(),
                     "Expected event topic '{}' for {} not found",
@@ -443,8 +446,7 @@ fn test_all_event_topics_schema_compliance() {
                 );
             }
             "withdraw" => {
-                let events =
-                    find_events_by_topic(env.events().all(), &env, symbol_short!("withdraw"));
+                let events = find_events_by_topic(env.events().all(), &env, TOPIC_WITHDRAW);
                 assert!(
                     !events.is_empty(),
                     "Expected event topic '{}' for {} not found",
@@ -453,8 +455,7 @@ fn test_all_event_topics_schema_compliance() {
                 );
             }
             "paused" => {
-                let events =
-                    find_events_by_topic(env.events().all(), &env, symbol_short!("paused"));
+                let events = find_events_by_topic(env.events().all(), &env, TOPIC_PAUSED);
                 assert!(
                     !events.is_empty(),
                     "Expected event topic '{}' for {} not found",
@@ -463,8 +464,7 @@ fn test_all_event_topics_schema_compliance() {
                 );
             }
             "unpaused" => {
-                let events =
-                    find_events_by_topic(env.events().all(), &env, symbol_short!("unpaused"));
+                let events = find_events_by_topic(env.events().all(), &env, TOPIC_UNPAUSED);
                 assert!(
                     !events.is_empty(),
                     "Expected event topic '{}' for {} not found",
@@ -473,7 +473,7 @@ fn test_all_event_topics_schema_compliance() {
                 );
             }
             "emerg" => {
-                let events = find_events_by_topic(env.events().all(), &env, symbol_short!("emerg"));
+                let events = find_events_by_topic(env.events().all(), &env, TOPIC_EMERGENCY_PAUSED);
                 assert!(
                     !events.is_empty(),
                     "Expected event topic '{}' for {} not found",
@@ -482,7 +482,7 @@ fn test_all_event_topics_schema_compliance() {
                 );
             }
             "l_upd" => {
-                let events = find_events_by_topic(env.events().all(), &env, symbol_short!("l_upd"));
+                let events = find_events_by_topic(env.events().all(), &env, TOPIC_LIMITS_UPDATED);
                 assert!(
                     !events.is_empty(),
                     "Expected event topic '{}' for {} not found",
@@ -491,7 +491,7 @@ fn test_all_event_topics_schema_compliance() {
                 );
             }
             "agent" => {
-                let events = find_events_by_topic(env.events().all(), &env, symbol_short!("agent"));
+                let events = find_events_by_topic(env.events().all(), &env, TOPIC_AGENT_UPDATED);
                 assert!(
                     !events.is_empty(),
                     "Expected event topic '{}' for {} not found",
@@ -501,7 +501,7 @@ fn test_all_event_topics_schema_compliance() {
             }
             "own_init" => {
                 let events =
-                    find_events_by_topic(env.events().all(), &env, symbol_short!("own_init"));
+                    find_events_by_topic(env.events().all(), &env, TOPIC_OWNERSHIP_INITIATED);
                 assert!(
                     !events.is_empty(),
                     "Expected event topic '{}' for {} not found",
@@ -511,7 +511,7 @@ fn test_all_event_topics_schema_compliance() {
             }
             "own_xfer" => {
                 let events =
-                    find_events_by_topic(env.events().all(), &env, symbol_short!("own_xfer"));
+                    find_events_by_topic(env.events().all(), &env, TOPIC_OWNERSHIP_TRANSFERRED);
                 assert!(
                     !events.is_empty(),
                     "Expected event topic '{}' for {} not found",
@@ -551,7 +551,7 @@ fn test_event_payload_field_types() {
 
     // Test deposit event payload types
     mint_and_deposit(&env, &client, &usdc_token, &user, amount);
-    let deposit_events = find_events_by_topic(env.events().all(), &env, symbol_short!("deposit"));
+    let deposit_events = find_events_by_topic(env.events().all(), &env, TOPIC_DEPOSIT);
     let (_, _, data) = &deposit_events[0];
 
     // This will fail if the payload structure changes
@@ -580,7 +580,7 @@ fn test_event_emission_consistency() {
     mint_and_deposit(&env, &client, &usdc_token, &user1, 5_000_000_i128);
     mint_and_deposit(&env, &client, &usdc_token, &user2, 3_000_000_i128);
 
-    let deposit_events = find_events_by_topic(env.events().all(), &env, symbol_short!("deposit"));
+    let deposit_events = find_events_by_topic(env.events().all(), &env, TOPIC_DEPOSIT);
     assert_eq!(
         deposit_events.len(),
         2,

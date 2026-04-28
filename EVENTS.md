@@ -17,6 +17,8 @@ All events use short symbol topics (max 9 characters) for efficiency:
 - Payload contains detailed event data
 - Events are published from the vault contract address
 
+Canonical topics are declared in [neurowealth-vault/contracts/vault/src/lib.rs](neurowealth-vault/contracts/vault/src/lib.rs) as `TOPIC_*` constants and should be used as the single source of truth by emit sites and tests.
+
 ## Core Events
 
 ### 1. VaultInitializedEvent
@@ -129,6 +131,8 @@ pub struct EmergencyPausedEvent {
 **Topic:** `"l_upd"`
 
 Emitted when deposit limits are updated.
+
+This canonical topic is used by both `set_limits` and `set_deposit_limits`.
 
 ```rust
 pub struct LimitsUpdatedEvent {
