@@ -53,7 +53,7 @@ fn test_initialize_default_values() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, _agent, _owner, _usdc_token) = setup_vault(&env);
+    let (contract_id, _agent, _owner) = setup_vault(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     // Verify actual defaults set by initialize()

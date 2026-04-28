@@ -271,7 +271,7 @@ fn test_update_agent_emits_agent_event_with_correct_payload() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, old_agent, _owner, _usdc_token) = setup_vault(&env);
+    let (contract_id, old_agent, _owner) = setup_vault(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     let new_agent = Address::generate(&env);

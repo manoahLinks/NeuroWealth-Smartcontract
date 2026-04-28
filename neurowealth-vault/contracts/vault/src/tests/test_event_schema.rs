@@ -183,7 +183,7 @@ fn test_event_schema_ownership_transfer_events() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, _agent, owner, _usdc_token) = setup_vault(&env);
+    let (contract_id, _agent, owner) = setup_vault(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     let new_owner = Address::generate(&env);
@@ -228,7 +228,7 @@ fn test_event_schema_agent_update_events() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, old_agent, _owner, _usdc_token) = setup_vault(&env);
+    let (contract_id, old_agent, _owner) = setup_vault(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     let new_agent = Address::generate(&env);

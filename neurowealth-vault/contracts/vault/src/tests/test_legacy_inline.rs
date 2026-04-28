@@ -291,7 +291,7 @@ fn test_rebalance_basic() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, _agent, _owner) = setup_vault(&env);
+    let (contract_id, _agent, _owner, _usdc_token) = setup_vault(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     let protocol = soroban_sdk::symbol_short!("none");

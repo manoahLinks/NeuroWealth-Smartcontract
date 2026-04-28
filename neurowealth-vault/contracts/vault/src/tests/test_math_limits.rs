@@ -10,9 +10,9 @@ fn test_deposit_overflow() {
 
     let (contract_id, _agent, _owner, usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
-    let token_client = TestTokenClient::new(&env, &usdc_token);
+    let _token_client = TestTokenClient::new(&env, &usdc_token);
 
-    let user = Address::generate(&env);
+    let _user = Address::generate(&env);
     
     // Set a very large user balance first by multiple deposits
     // We want to hit i128::MAX. 
