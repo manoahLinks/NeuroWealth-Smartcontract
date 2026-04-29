@@ -16,8 +16,10 @@ fn test_deposit_overflow_protection() {
 
     let user = Address::generate(&env);
 
-    // Remove limits to test large deposits
-    client.set_limits(&0, &0);
+    // Increase deposit limits to allow large deposits
+    // Default max deposit is 1,000 USDC, default user cap is 10,000 USDC
+    client.set_deposit_limits(&1_000_000, &10_000_000_000_000_i128);
+    client.set_limits(&0, &10_000_000_000_000_i128); // Remove user cap and increase TVL cap
 
     // Large deposit should work (verifying math doesn't overflow at reasonable scales)
     mint_and_deposit(&env, &client, &usdc_token, &user, 1_000_000_000_000_i128);

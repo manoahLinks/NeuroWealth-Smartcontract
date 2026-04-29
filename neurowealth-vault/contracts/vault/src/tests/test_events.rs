@@ -460,8 +460,8 @@ fn test_withdraw_all_partial_liquidity_emits_burned_shares() {
 
     // Get post-deposit state for accurate calculations
     let shares_before = client.get_shares(&user);
-    let total_shares_before = client.get_total_shares();
-    let total_assets_before = client.get_total_assets();
+    let _total_shares_before = client.get_total_shares();
+    let _total_assets_before = client.get_total_assets();
 
     client.rebalance(&symbol_short!("blend"), &900_i128);
 
