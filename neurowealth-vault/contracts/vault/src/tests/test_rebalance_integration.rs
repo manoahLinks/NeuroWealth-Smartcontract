@@ -623,7 +623,8 @@ fn test_integration_canonical_full_lifecycle_flow() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, owner, usdc_token, blend_pool) = setup_vault_with_token_and_blend(&env);
+    let (contract_id, agent, owner, usdc_token, blend_pool) =
+        setup_vault_with_token_and_blend(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
     let token_client = TestTokenClient::new(&env, &usdc_token);
     let blend_client = MockBlendPoolClient::new(&env, &blend_pool);
@@ -688,7 +689,10 @@ fn test_integration_canonical_full_lifecycle_flow() {
 
     assert_eq!(client.get_current_protocol(), symbol_short!("none"));
     assert_eq!(blend_client.supplied(&usdc_token), 0);
-    assert_eq!(vault_usdc_balance(&env, &usdc_token, &contract_id), 11_000_000_i128);
+    assert_eq!(
+        vault_usdc_balance(&env, &usdc_token, &contract_id),
+        11_000_000_i128
+    );
 
     // --- STEP 6: Final withdrawal with yield ---
     // User B withdraws remaining funds

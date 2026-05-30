@@ -97,7 +97,10 @@ fn test_exchange_rate_increases_after_yield_accrual() {
         rate, expected,
         "after 50 % yield, rate must be {expected}, got {rate}"
     );
-    assert!(rate > SCALAR, "rate must exceed SCALAR after positive yield");
+    assert!(
+        rate > SCALAR,
+        "rate must exceed SCALAR after positive yield"
+    );
 }
 
 /// Doubling `total_assets` means each share is worth exactly 2.0 USDC.
