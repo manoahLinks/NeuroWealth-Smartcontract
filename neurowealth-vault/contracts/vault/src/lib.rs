@@ -2082,8 +2082,13 @@ impl NeuroWealthVault {
             // max_decrease_bps is in basis points (1/100 of 1%)
             // Default 1000 bps = 10% maximum decrease per call
             let max_decrease_bps = max_decrease_bps.max(100); // Minimum 1% bound
-            let max_decrease = old_total * (max_decrease_bps as i128) / 10_000;
-            let actual_decrease = old_total - new_total;
+            let max_decrease = old_total
+                .checked_mul(max_decrease_bps as i128)
+                .expect("vault: max decrease mul overflow")
+                / 10_000;
+            let actual_decrease = old_total
+                .checked_sub(new_total)
+                .expect("vault: decrease underflow");
 
             assert!(
                 actual_decrease <= max_decrease,
@@ -2117,7 +2122,9 @@ impl NeuroWealthVault {
                 &usdc_token,
                 &env.current_contract_address(),
             );
-            total_available += deployed_balance;
+            total_available = total_available
+                .checked_add(deployed_balance)
+                .expect("vault: total available overflow");
         }
 
         assert!(
@@ -2750,8 +2757,15 @@ impl NeuroWealthVault {
             // Ceiling division: (a + b - 1) / b
             // shares = ceil(assets * total_shares / total_assets)
             let product = assets.checked_mul(total_shares).expect("vault: conversion mul overflow");
-            // Safe addition: total_assets >= 1 in this branch, so (product + total_assets - 1) won't overflow if product didn't
-            let numerator = product.checked_add(total_assets - 1).expect("vault: conversion add overflow");
+            // total_assets >= 1 in this branch, so the subtraction cannot underflow;
+            // use checked ops throughout for a consistent, explicit failure mode.
+            let numerator = product
+                .checked_add(
+                    total_assets
+                        .checked_sub(1)
+                        .expect("vault: conversion sub underflow"),
+                )
+                .expect("vault: conversion add overflow");
             numerator.checked_div(total_assets).expect("vault: conversion div error")
         }
     }
