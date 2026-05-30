@@ -5,6 +5,7 @@ mod test_checked_arithmetic;
 mod test_deposit;
 mod test_event_schema;
 mod test_events;
+mod test_exchange_rate;
 mod test_initialize;
 mod test_inflation_attack;
 mod test_legacy_inline;

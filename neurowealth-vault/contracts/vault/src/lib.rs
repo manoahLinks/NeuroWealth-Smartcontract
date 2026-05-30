@@ -2519,6 +2519,78 @@ impl NeuroWealthVault {
         env.storage().instance().get(&DataKey::BlendPool)
     }
 
+    /// Returns the current exchange rate: assets per share, scaled by `EXCHANGE_RATE_SCALAR`.
+    ///
+    /// ## Formula
+    ///
+    /// ```text
+    /// exchange_rate = (total_assets * EXCHANGE_RATE_SCALAR) / total_shares
+    /// ```
+    ///
+    /// Where `EXCHANGE_RATE_SCALAR = 10_000_000` (7 decimal places, matching USDC
+    /// precision on Stellar).
+    ///
+    /// ### Bootstrap / Empty-vault case
+    ///
+    /// When `total_shares == 0` or `total_assets == 0` (i.e. the vault has never
+    /// had a deposit, or all funds have been withdrawn), the function returns
+    /// `EXCHANGE_RATE_SCALAR` (i.e. `1.0000000`), representing parity between one
+    /// share and one asset unit.  This prevents a division-by-zero panic and gives
+    /// external callers a well-defined initial price.
+    ///
+    /// ### Rounding
+    ///
+    /// Integer division truncates toward zero (floor rounding).  The result is
+    /// therefore always ≤ the true rational value, which is the conservative
+    /// direction for a vault: it never over-reports the share price.
+    ///
+    /// ### Interpretation
+    ///
+    /// A return value of `10_500_000` means each share is currently worth
+    /// `1.05` USDC (5 % yield accrued since inception).
+    ///
+    /// ## Arguments
+    /// * `env` - The Soroban environment
+    ///
+    /// ## Returns
+    /// Exchange rate as a scaled `i128`.  Divide by `10_000_000` (7 decimal
+    /// places) to obtain the human-readable assets-per-share ratio.
+    ///
+    /// ## Panics
+    /// - If the vault has not been initialized yet.
+    ///
+    /// ## Events
+    /// None – this is a pure read-only query.
+    ///
+    /// ## Example (off-chain pseudo-code)
+    /// ```text
+    /// let rate = vault.get_exchange_rate();           // e.g. 10_500_000
+    /// let human_rate = rate as f64 / 10_000_000.0;   // → 1.05
+    /// let user_assets = user_shares as f64 * human_rate;
+    /// ```
+    pub fn get_exchange_rate(env: Env) -> i128 {
+        Self::require_initialized(&env);
+
+        /// Scalar used to preserve 7 decimal places of precision in the
+        /// integer result (matches USDC's 7-decimal precision on Stellar).
+        const EXCHANGE_RATE_SCALAR: i128 = 10_000_000;
+
+        let total_shares = Self::get_total_shares_internal(&env);
+        let total_assets = Self::get_total_assets_internal(&env);
+
+        // Bootstrap / empty-vault: return 1:1 parity (no division-by-zero).
+        if total_shares == 0 || total_assets == 0 {
+            return EXCHANGE_RATE_SCALAR;
+        }
+
+        // exchange_rate = (total_assets * SCALAR) / total_shares
+        // Floor-rounded (conservative – never over-reports share price).
+        total_assets
+            .checked_mul(EXCHANGE_RATE_SCALAR)
+            .expect("vault: exchange rate overflow")
+            / total_shares
+    }
+
     // ==========================================================================
     // INTERNAL HELPERS
     // ==========================================================================
