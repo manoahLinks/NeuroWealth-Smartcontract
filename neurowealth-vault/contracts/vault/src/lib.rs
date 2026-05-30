@@ -108,6 +108,7 @@
 //! ```
 
 #![no_std]
+#![allow(deprecated)]
 
 use core::cmp::min;
 use soroban_sdk::{
@@ -323,6 +324,18 @@ pub struct UserDepositCapUpdatedEvent {
     pub new_cap: i128,
 }
 
+/// Emitted when both user deposit cap and TVL cap are updated.
+///
+/// # Topics
+/// - `SymbolShort("caps_upd")` - Event identifier
+#[contracttype]
+pub struct CapsUpdatedEvent {
+    pub old_user_cap: i128,
+    pub new_user_cap: i128,
+    pub old_tvl_cap: i128,
+    pub new_tvl_cap: i128,
+}
+
 /// Emitted when deposit limits are updated.
 ///
 /// # Topics
@@ -458,6 +471,7 @@ struct BlendRequest {
 }
 
 const BLEND_REQUEST_TYPE_SUPPLY: u32 = 0;
+#[allow(dead_code)]
 const DEFAULT_TVL_CAP: i128 = 100_000_000_000_i128;
 const DEFAULT_USER_DEPOSIT_CAP: i128 = 10_000_000_000_i128;
 const DEFAULT_MIN_DEPOSIT: i128 = 1_000_000_i128;
@@ -473,6 +487,7 @@ pub(crate) const TOPIC_EMERGENCY_PAUSED: Symbol = symbol_short!("emerg");
 pub(crate) const TOPIC_TVL_CAP_UPDATED: Symbol = symbol_short!("tvl_cap");
 pub(crate) const TOPIC_USER_CAP_UPDATED: Symbol = symbol_short!("user_cap");
 pub(crate) const TOPIC_LIMITS_UPDATED: Symbol = symbol_short!("l_upd");
+pub(crate) const TOPIC_CAPS_UPDATED: Symbol = symbol_short!("caps_upd");
 pub(crate) const TOPIC_AGENT_UPDATED: Symbol = symbol_short!("agent");
 pub(crate) const TOPIC_OWNERSHIP_INITIATED: Symbol = symbol_short!("own_init");
 pub(crate) const TOPIC_OWNERSHIP_TRANSFERRED: Symbol = symbol_short!("own_xfer");
@@ -541,9 +556,7 @@ impl BlendPoolClient {
 
         // Calculate actual amount supplied by balance change
         let balance_after = token_client.balance(&vault_address);
-        let actual_supplied = balance_before.saturating_sub(balance_after);
-
-        actual_supplied
+        balance_before.saturating_sub(balance_after)
     }
 
     /// Redeems assets from the Blend pool.
@@ -585,9 +598,7 @@ impl BlendPoolClient {
 
         // Calculate actual amount withdrawn by balance change
         let balance_after = token_client.balance(&vault_address);
-        let actual_withdrawn = balance_after.saturating_sub(balance_before);
-
-        actual_withdrawn
+        balance_after.saturating_sub(balance_before)
     }
 
     /// Gets the balance of assets supplied to the Blend pool.
@@ -1349,7 +1360,7 @@ impl NeuroWealthVault {
         } else if protocol == symbol_short!("none") {
             let mut amount_attempted = 0;
             let mut amount_moved = 0;
-            let mut status = symbol_short!("success");
+            let status = symbol_short!("success");
 
             if current_protocol != symbol_short!("none") {
                 // Get expected balance before withdrawal for verification
@@ -1435,7 +1446,8 @@ impl NeuroWealthVault {
         env.storage().instance().set(&DataKey::Paused, &true);
 
         let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
-        env.events().publish((TOPIC_PAUSED,), VaultPausedEvent { owner });
+        env.events()
+            .publish((TOPIC_PAUSED,), VaultPausedEvent { owner });
     }
 
     /// Unpauses the vault, re-enabling deposits and withdrawals.
@@ -1607,7 +1619,77 @@ impl NeuroWealthVault {
         );
     }
 
+    /// Sets both the user deposit cap and TVL cap in a single transaction.
+    ///
+    /// This function allows updating both caps atomically and emits a
+    /// `CapsUpdatedEvent` with all old and new values.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    /// * `user_deposit_cap` - New per-user deposit cap in USDC units (7 decimal places)
+    /// * `tvl_cap` - New TVL cap in USDC units (7 decimal places)
+    ///
+    /// # Returns
+    /// Nothing. This function updates both caps and returns nothing.
+    ///
+    /// # Panics
+    /// - If the caller is not the owner
+    /// - If user_deposit_cap is negative
+    /// - If tvl_cap is negative
+    /// - If tvl_cap is less than user_deposit_cap (when both are non-zero)
+    ///
+    /// # Events
+    /// Emits `CapsUpdatedEvent`
+    ///
+    /// # Security
+    /// - Only the owner can modify the caps
+    pub fn set_caps(env: Env, user_deposit_cap: i128, tvl_cap: i128) {
+        Self::require_initialized(&env);
+        Self::require_is_owner(&env);
+
+        if user_deposit_cap < 0 {
+            panic!("vault: user deposit cap cannot be negative");
+        }
+        if tvl_cap < 0 {
+            panic!("vault: tvl cap cannot be negative");
+        }
+        if tvl_cap > 0 && user_deposit_cap > 0 && tvl_cap < user_deposit_cap {
+            panic!("vault: tvl cap must be >= user deposit cap");
+        }
+
+        let old_user_cap: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::UserDepositCap)
+            .unwrap_or(0_i128);
+        let old_tvl_cap: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::TvLCap)
+            .unwrap_or(0_i128);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::UserDepositCap, &user_deposit_cap);
+        env.storage().instance().set(&DataKey::TvLCap, &tvl_cap);
+
+        env.events().publish(
+            (TOPIC_CAPS_UPDATED,),
+            CapsUpdatedEvent {
+                old_user_cap,
+                new_user_cap: user_deposit_cap,
+                old_tvl_cap,
+                new_tvl_cap: tvl_cap,
+            },
+        );
+    }
+
     /// Sets both the user deposit cap (min) and TVL cap (max) in a single transaction.
+    ///
+    /// # Deprecated
+    /// This function is deprecated because its name and parameters ("min" / "max")
+    /// are confusing and conflict with per-transaction deposit limits.
+    /// Use `set_caps` instead.
     ///
     /// This function allows updating both limits atomically and emits a single
     /// `LimitsUpdatedEvent` with all old and new values.
@@ -1632,6 +1714,7 @@ impl NeuroWealthVault {
     ///
     /// # Security
     /// - Only the owner can modify the limits
+    #[deprecated(since = "0.2.0", note = "confusing naming; use set_caps instead")]
     pub fn set_limits(env: Env, min: i128, max: i128) {
         Self::require_initialized(&env);
         Self::require_is_owner(&env);
@@ -2668,8 +2751,7 @@ impl NeuroWealthVault {
 
     #[inline]
     fn get_min_deposit_internal(env: &Env) -> i128 {
-        env
-            .storage()
+        env.storage()
             .instance()
             .get(&DataKey::MinDeposit)
             .unwrap_or(DEFAULT_MIN_DEPOSIT)
@@ -2689,8 +2771,7 @@ impl NeuroWealthVault {
 
     #[inline]
     fn get_max_deposit_internal(env: &Env) -> i128 {
-        env
-            .storage()
+        env.storage()
             .instance()
             .get(&DataKey::MaxDeposit)
             .unwrap_or(DEFAULT_MAX_DEPOSIT)
@@ -2828,7 +2909,9 @@ impl NeuroWealthVault {
         } else {
             // Ceiling division: (a + b - 1) / b
             // shares = ceil(assets * total_shares / total_assets)
-            let product = assets.checked_mul(total_shares).expect("vault: conversion mul overflow");
+            let product = assets
+                .checked_mul(total_shares)
+                .expect("vault: conversion mul overflow");
             // total_assets >= 1 in this branch, so the subtraction cannot underflow;
             // use checked ops throughout for a consistent, explicit failure mode.
             let numerator = product
@@ -2838,7 +2921,9 @@ impl NeuroWealthVault {
                         .expect("vault: conversion sub underflow"),
                 )
                 .expect("vault: conversion add overflow");
-            numerator.checked_div(total_assets).expect("vault: conversion div error")
+            numerator
+                .checked_div(total_assets)
+                .expect("vault: conversion div error")
         }
     }
 
@@ -3099,7 +3184,8 @@ impl NeuroWealthVault {
         if *protocol == symbol_short!("blend") {
             let pool_address: Option<Address> = env.storage().instance().get(&DataKey::BlendPool);
             if let Some(pool) = pool_address {
-                let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
+                let usdc_token: Address =
+                    env.storage().instance().get(&DataKey::UsdcToken).unwrap();
                 let vault_address = env.current_contract_address();
                 BlendPoolClient::get_balance(env, &pool, &usdc_token, &vault_address)
             } else {

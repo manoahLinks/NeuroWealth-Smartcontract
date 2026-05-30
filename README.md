@@ -164,7 +164,24 @@ npm run dev        # http://localhost:3000
 Smart Contract
 The core Soroban vault contract handles all on-chain fund management.
 Key Functions
-FunctionWho Can CallDescriptioninitializeOwner (once)Set agent address and USDC tokendepositAny verified userDeposit USDC into the vaultwithdrawUser (their own funds)Withdraw USDC back to walletwithdraw_allUser (their own funds)Withdraw all USDC by burning all sharesrebalanceAI Agent onlyMove funds between yield strategiesget_balanceAnyoneRead a user's current balanceget_total_depositsAnyoneRead total vault TVLtransfer_ownershipOwner onlyInitiate two-step ownership transferaccept_ownershipPending owner onlyComplete ownership transfer
+
+| Function | Who Can Call | Description |
+| :--- | :--- | :--- |
+| `initialize` | Owner (once) | Set agent address and USDC token |
+| `deposit` | Any verified user | Deposit USDC into the vault |
+| `withdraw` | User (their own funds) | Withdraw USDC back to wallet |
+| `withdraw_all` | User (their own funds) | Withdraw all USDC by burning all shares |
+| `rebalance` | AI Agent only | Move funds between yield strategies |
+| `get_balance` | Anyone | Read a user's current balance |
+| `get_total_deposits` | Anyone | Read total vault TVL |
+| `get_exchange_rate` | Anyone | Read current exchange rate (assets per share * 10,000,000) |
+| `transfer_ownership` | Owner only | Initiate two-step ownership transfer |
+| `accept_ownership` | Pending owner only | Complete ownership transfer |
+| `set_caps` | Owner only | Sets both user deposit cap and TVL cap in a single transaction |
+| `set_deposit_limits` | Owner only | Sets minimum and maximum per-transaction deposit limits |
+| `set_tvl_cap` | Owner only | Sets the maximum total TVL that can be deposited |
+| `set_user_deposit_cap` | Owner only | Sets the maximum deposit amount per user |
+| `set_limits` | Owner only | **Deprecated**: Sets user deposit cap and TVL cap (use `set_caps` instead) |
 Security Model
 
 Users can only withdraw their own funds — enforced at the contract level via user.require_auth()
