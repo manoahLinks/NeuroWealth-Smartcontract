@@ -418,8 +418,8 @@ fn test_all_event_topics_schema_compliance() {
         ("withdraw", "User withdrawal"),
         ("paused", "Vault paused"),
         ("unpaused", "Vault unpaused"),
-        ("emerg", "Emergency pause"),
-        ("l_upd", "Limits updated"),
+        ("emergency", "Emergency pause"),
+        ("limits", "Limits updated"),
         ("agent", "Agent updated"),
         ("own_init", "Ownership transfer initiated"),
         ("own_xfer", "Ownership transferred"),
@@ -473,7 +473,7 @@ fn test_all_event_topics_schema_compliance() {
                     description
                 );
             }
-            "emerg" => {
+            "emergency" => {
                 let events = find_events_by_topic(env.events().all(), &env, TOPIC_EMERGENCY_PAUSED);
                 assert!(
                     !events.is_empty(),
@@ -482,7 +482,7 @@ fn test_all_event_topics_schema_compliance() {
                     description
                 );
             }
-            "l_upd" => {
+            "limits" => {
                 let events = find_events_by_topic(env.events().all(), &env, TOPIC_LIMITS_UPDATED);
                 assert!(
                     !events.is_empty(),

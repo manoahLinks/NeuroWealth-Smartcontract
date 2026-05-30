@@ -110,6 +110,8 @@
 #![no_std]
 #![allow(deprecated)]
 
+pub mod topics;
+
 use core::cmp::min;
 use soroban_sdk::{
     auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
@@ -477,25 +479,25 @@ const DEFAULT_USER_DEPOSIT_CAP: i128 = 10_000_000_000_i128;
 const DEFAULT_MIN_DEPOSIT: i128 = 1_000_000_i128;
 const DEFAULT_MAX_DEPOSIT: i128 = 10_000_000_000_i128;
 
-pub(crate) const TOPIC_INIT: Symbol = symbol_short!("init");
-pub(crate) const TOPIC_DEPOSIT: Symbol = symbol_short!("deposit");
-pub(crate) const TOPIC_WITHDRAW: Symbol = symbol_short!("withdraw");
-pub(crate) const TOPIC_REBALANCE: Symbol = symbol_short!("rebalance");
-pub(crate) const TOPIC_PAUSED: Symbol = symbol_short!("paused");
-pub(crate) const TOPIC_UNPAUSED: Symbol = symbol_short!("unpaused");
-pub(crate) const TOPIC_EMERGENCY_PAUSED: Symbol = symbol_short!("emerg");
-pub(crate) const TOPIC_TVL_CAP_UPDATED: Symbol = symbol_short!("tvl_cap");
-pub(crate) const TOPIC_USER_CAP_UPDATED: Symbol = symbol_short!("user_cap");
-pub(crate) const TOPIC_LIMITS_UPDATED: Symbol = symbol_short!("l_upd");
-pub(crate) const TOPIC_CAPS_UPDATED: Symbol = symbol_short!("caps_upd");
-pub(crate) const TOPIC_AGENT_UPDATED: Symbol = symbol_short!("agent");
-pub(crate) const TOPIC_OWNERSHIP_INITIATED: Symbol = symbol_short!("own_init");
-pub(crate) const TOPIC_OWNERSHIP_TRANSFERRED: Symbol = symbol_short!("own_xfer");
-pub(crate) const TOPIC_OWNERSHIP_CANCELLED: Symbol = symbol_short!("own_cncl");
-pub(crate) const TOPIC_ASSETS_UPDATED: Symbol = symbol_short!("assets");
-pub(crate) const TOPIC_UPGRADED: Symbol = symbol_short!("upgraded");
-pub(crate) const TOPIC_BLEND_SUPPLY: Symbol = symbol_short!("blend_sup");
-pub(crate) const TOPIC_BLEND_WITHDRAW: Symbol = symbol_short!("blend_wd");
+pub(crate) const TOPIC_INIT: Symbol = topics::INIT;
+pub(crate) const TOPIC_DEPOSIT: Symbol = topics::DEPOSIT;
+pub(crate) const TOPIC_WITHDRAW: Symbol = topics::WITHDRAW;
+pub(crate) const TOPIC_REBALANCE: Symbol = topics::REBALANCE;
+pub(crate) const TOPIC_PAUSED: Symbol = topics::PAUSED;
+pub(crate) const TOPIC_UNPAUSED: Symbol = topics::UNPAUSED;
+pub(crate) const TOPIC_EMERGENCY_PAUSED: Symbol = topics::EMERGENCY;
+pub(crate) const TOPIC_TVL_CAP_UPDATED: Symbol = topics::TVL_CAP;
+pub(crate) const TOPIC_USER_CAP_UPDATED: Symbol = topics::USER_CAP;
+pub(crate) const TOPIC_LIMITS_UPDATED: Symbol = topics::LIMITS;
+pub(crate) const TOPIC_CAPS_UPDATED: Symbol = topics::CAPS;
+pub(crate) const TOPIC_AGENT_UPDATED: Symbol = topics::AGENT;
+pub(crate) const TOPIC_OWNERSHIP_INITIATED: Symbol = topics::OWN_INIT;
+pub(crate) const TOPIC_OWNERSHIP_TRANSFERRED: Symbol = topics::OWN_XFER;
+pub(crate) const TOPIC_OWNERSHIP_CANCELLED: Symbol = topics::OWN_CNCL;
+pub(crate) const TOPIC_ASSETS_UPDATED: Symbol = topics::ASSETS;
+pub(crate) const TOPIC_UPGRADED: Symbol = topics::UPGRADED;
+pub(crate) const TOPIC_BLEND_SUPPLY: Symbol = topics::BLEND_SUP;
+pub(crate) const TOPIC_BLEND_WITHDRAW: Symbol = topics::BLEND_WD;
 
 impl BlendPoolClient {
     /// Deposits assets to the Blend pool.

@@ -117,7 +117,7 @@ pub struct VaultUnpausedEvent {
 ```
 
 ### 7. EmergencyPausedEvent
-**Topic:** `"emerg"`
+**Topic:** `"emergency"`
 
 Emitted when the vault is emergency paused by the agent.
 
@@ -128,7 +128,7 @@ pub struct EmergencyPausedEvent {
 ```
 
 ### 8. LimitsUpdatedEvent
-**Topic:** `"l_upd"`
+**Topic:** `"limits"`
 
 Emitted when deposit limits or caps are updated.
 
@@ -147,7 +147,7 @@ pub struct LimitsUpdatedEvent {
 ```
 
 ### 8b. CapsUpdatedEvent
-**Topic:** `"caps_upd"`
+**Topic:** `"caps"`
 
 Emitted when user deposit and TVL caps are updated in a single transaction via `set_caps`.
 
