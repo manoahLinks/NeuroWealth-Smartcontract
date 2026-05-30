@@ -130,18 +130,36 @@ pub struct EmergencyPausedEvent {
 ### 8. LimitsUpdatedEvent
 **Topic:** `"l_upd"`
 
-Emitted when deposit limits are updated.
+Emitted when deposit limits or caps are updated.
 
-This canonical topic is used by both `set_limits` and `set_deposit_limits`.
+> [!NOTE]
+> This canonical topic is used by:
+> - `set_deposit_limits`: Updates min/max per-transaction deposit limits (`min` = minimum deposit, `max` = maximum deposit).
+> - `set_limits` (Deprecated): Updates user and TVL caps (`min` = user deposit cap, `max` = TVL cap). Use `set_caps` instead.
 
 ```rust
 pub struct LimitsUpdatedEvent {
-    pub old_min: i128,    // Previous minimum deposit
-    pub new_min: i128,    // New minimum deposit
-    pub old_max: i128,    // Previous maximum deposit
-    pub new_max: i128,    // New maximum deposit
+    pub old_min: i128,    // Previous minimum deposit limit or user cap
+    pub new_min: i128,    // New minimum deposit limit or user cap
+    pub old_max: i128,    // Previous maximum deposit limit or TVL cap
+    pub new_max: i128,    // New maximum deposit limit or TVL cap
 }
 ```
+
+### 8b. CapsUpdatedEvent
+**Topic:** `"caps_upd"`
+
+Emitted when user deposit and TVL caps are updated in a single transaction via `set_caps`.
+
+```rust
+pub struct CapsUpdatedEvent {
+    pub old_user_cap: i128,  // Previous per-user deposit cap (7 decimals)
+    pub new_user_cap: i128,  // New per-user deposit cap (7 decimals)
+    pub old_tvl_cap: i128,   // Previous TVL cap (7 decimals)
+    pub new_tvl_cap: i128,   // New TVL cap (7 decimals)
+}
+```
+
 
 ### 9. AgentUpdatedEvent
 **Topic:** `"agent"`

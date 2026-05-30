@@ -1,13 +1,13 @@
 //! Tests for vault initialization
- 
+
 use super::utils::*;
 use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
- 
+
 #[test]
 fn test_initialize_happy_path() {
     let env = Env::default();
     env.mock_all_auths();
- 
+
     let deployer = Address::generate(&env);
     let salt = BytesN::from_array(&env, &[0u8; 32]);
     let contract_id = env
@@ -15,15 +15,15 @@ fn test_initialize_happy_path() {
         .with_address(deployer.clone(), salt.clone())
         .deployed_address();
     env.register_contract(&contract_id, NeuroWealthVault);
- 
+
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
     let agent = Address::generate(&env);
     let owner = Address::generate(&env);
     let usdc_token = Address::generate(&env);
- 
+
     // Deployer must call initialize with the correct salt
     client.initialize(&deployer, &owner, &agent, &usdc_token, &salt);
- 
+
     // Verify initialization
     assert_eq!(client.get_agent(), agent);
     assert_eq!(client.get_usdc_token(), usdc_token);
@@ -33,13 +33,13 @@ fn test_initialize_happy_path() {
     assert_eq!(client.get_total_deposits(), 0);
     assert_eq!(client.get_total_assets(), 0);
 }
- 
+
 #[test]
 #[should_panic(expected = "vault: already initialized")]
 fn test_double_initialize_panics() {
     let env = Env::default();
     env.mock_all_auths();
- 
+
     let deployer = Address::generate(&env);
     let salt = BytesN::from_array(&env, &[0u8; 32]);
     let contract_id = env
@@ -47,25 +47,25 @@ fn test_double_initialize_panics() {
         .with_address(deployer.clone(), salt.clone())
         .deployed_address();
     env.register_contract(&contract_id, NeuroWealthVault);
- 
+
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
     let agent = Address::generate(&env);
     let owner = Address::generate(&env);
     let usdc_token = Address::generate(&env);
- 
+
     client.initialize(&deployer, &owner, &agent, &usdc_token, &salt);
     // Second call should panic with "vault: already initialized"
     client.initialize(&deployer, &owner, &agent, &usdc_token, &salt);
 }
- 
+
 #[test]
 fn test_initialize_default_values() {
     let env = Env::default();
     env.mock_all_auths();
- 
+
     let (contract_id, _agent, _owner) = setup_vault(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
- 
+
     // Verify actual defaults set by initialize()
     assert!(!client.is_paused(), "Vault should start unpaused");
     assert_eq!(
@@ -96,12 +96,12 @@ fn test_initialize_default_values() {
     );
     assert_eq!(client.get_total_assets(), 0, "Initial assets should be 0");
 }
- 
+
 #[test]
 fn test_initialize_emits_event() {
     let env = Env::default();
     env.mock_all_auths();
- 
+
     let deployer = Address::generate(&env);
     let salt = BytesN::from_array(&env, &[0u8; 32]);
     let contract_id = env
@@ -109,28 +109,28 @@ fn test_initialize_emits_event() {
         .with_address(deployer.clone(), salt.clone())
         .deployed_address();
     env.register_contract(&contract_id, NeuroWealthVault);
- 
+
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
     let agent = Address::generate(&env);
     let owner = Address::generate(&env);
     let usdc_token = Address::generate(&env);
- 
+
     client.initialize(&deployer, &owner, &agent, &usdc_token, &salt);
- 
+
     let events = env.events().all();
     assert!(!events.is_empty(), "Initialization should emit an event");
- 
+
     let init_events =
         find_events_by_topic(env.events().all(), &env, soroban_sdk::symbol_short!("init"));
     assert!(!init_events.is_empty(), "Should have initialization event");
 }
- 
+
 #[test]
 #[should_panic(expected = "vault: unauthorized deployer")]
 fn test_unauthorized_deployer_initialize_fails() {
     let env = Env::default();
     env.mock_all_auths();
- 
+
     let deployer = Address::generate(&env);
     let salt = BytesN::from_array(&env, &[0u8; 32]);
     let contract_id = env
@@ -138,12 +138,12 @@ fn test_unauthorized_deployer_initialize_fails() {
         .with_address(deployer.clone(), salt.clone())
         .deployed_address();
     env.register_contract(&contract_id, NeuroWealthVault);
- 
+
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
     let agent = Address::generate(&env);
     let owner = Address::generate(&env);
     let usdc_token = Address::generate(&env);
- 
+
     // Attack: Attacker generates their own address as deployer to bypass require_auth
     let attacker = Address::generate(&env);
     // This must fail because the attacker's expected contract address doesn't match contract_id

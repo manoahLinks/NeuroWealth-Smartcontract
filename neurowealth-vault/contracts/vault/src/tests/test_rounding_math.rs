@@ -523,7 +523,9 @@ fn test_preview_withdraw_matches_actual_withdraw_rounding() {
     let previewed_shares_to_burn = client.preview_withdraw(&withdraw_amount);
 
     // Manual calculation of ceil(3M * 10M / 13M) = ceil(3000000000000/13000000) = ceil(230769.23...) = 230770
-    let expected_ceil_shares = (withdraw_amount * client.get_total_shares() + client.get_total_assets() - 1) / client.get_total_assets();
+    let expected_ceil_shares =
+        (withdraw_amount * client.get_total_shares() + client.get_total_assets() - 1)
+            / client.get_total_assets();
 
     assert_eq!(
         previewed_shares_to_burn, expected_ceil_shares,
@@ -591,7 +593,9 @@ fn test_preview_withdraw_odd_amounts() {
         assert!(
             previewed >= floor_val,
             "Ceil result ({}) should be >= floor ({}) for amount {}",
-            previewed, floor_val, amount
+            previewed,
+            floor_val,
+            amount
         );
 
         // Difference should be at most 1
@@ -641,7 +645,8 @@ fn test_dust_withdrawal_at_high_share_price() {
     let assets_from_1_share = client.preview_shares_to_assets(&1);
     assert!(
         assets_from_1_share >= dust_amount,
-        "1 share should be worth at least {} assets", dust_amount
+        "1 share should be worth at least {} assets",
+        dust_amount
     );
 
     // Actual withdraw of dust amount should succeed (not revert)

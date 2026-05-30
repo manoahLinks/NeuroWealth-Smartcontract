@@ -160,8 +160,7 @@ fn test_event_schema_rebalance_events() {
     let expected_apy = 850_i128;
     client.rebalance(&protocol, &expected_apy);
 
-    let rebalance_events =
-        find_events_by_topic(env.events().all(), &env, TOPIC_REBALANCE);
+    let rebalance_events = find_events_by_topic(env.events().all(), &env, TOPIC_REBALANCE);
     assert_eq!(
         rebalance_events.len(),
         1,
@@ -209,8 +208,7 @@ fn test_event_schema_ownership_transfer_events() {
 
     // Test ownership transfer completion
     client.accept_ownership(&new_owner);
-    let xfer_events =
-        find_events_by_topic(env.events().all(), &env, TOPIC_OWNERSHIP_TRANSFERRED);
+    let xfer_events = find_events_by_topic(env.events().all(), &env, TOPIC_OWNERSHIP_TRANSFERRED);
     assert_eq!(
         xfer_events.len(),
         1,

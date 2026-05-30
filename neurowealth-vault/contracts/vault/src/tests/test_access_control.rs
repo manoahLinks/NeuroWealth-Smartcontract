@@ -640,4 +640,3 @@ fn test_agent_cannot_upgrade() {
     // agent is distinct from owner, so this should panic
     client.upgrade(&agent, &fake_wasm_hash);
 }
-

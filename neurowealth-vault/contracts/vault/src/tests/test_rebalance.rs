@@ -489,7 +489,8 @@ fn test_rebalance_fails_on_incomplete_protocol_exit() {
 
     // Verify funds are in blend
     assert_eq!(
-        token_client.balance(&contract_id), 0,
+        token_client.balance(&contract_id),
+        0,
         "Vault should have 0 after rebalance to blend"
     );
     assert_eq!(
@@ -536,7 +537,8 @@ fn test_rebalance_fails_when_switching_protocols_with_partial_exit() {
 
     // Verify funds are in blend
     assert_eq!(
-        token_client.balance(&contract_id), 0,
+        token_client.balance(&contract_id),
+        0,
         "Vault should have 0 after rebalance to blend"
     );
     assert_eq!(
