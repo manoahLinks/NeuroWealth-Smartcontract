@@ -82,8 +82,11 @@ Emitted when the AI agent rebalances funds between yield strategies.
 
 ```rust
 pub struct RebalanceEvent {
-    pub protocol: Symbol,     // Target protocol ("blend", "none")
-    pub expected_apy: i128,   // Expected APY in basis points (850 = 8.5%)
+    pub protocol: Symbol,         // Target protocol ("blend", "none")
+    pub expected_apy: i128,       // Expected APY in basis points (850 = 8.5%)
+    pub status: Symbol,           // Status ("success", "failed", "partial")
+    pub amount_attempted: i128,   // Amount attempted to be moved
+    pub amount_moved: i128,       // Amount actually moved
 }
 ```
 
@@ -130,23 +133,46 @@ pub struct EmergencyPausedEvent {
 ### 8. LimitsUpdatedEvent
 **Topic:** `"l_upd"`
 
-Emitted when deposit limits or caps are updated.
+Emitted when per-transaction deposit limits are updated.
 
-> [!NOTE]
-> This canonical topic is used by:
-> - `set_deposit_limits`: Updates min/max per-transaction deposit limits (`min` = minimum deposit, `max` = maximum deposit).
-> - `set_limits` (Deprecated): Updates user and TVL caps (`min` = user deposit cap, `max` = TVL cap). Use `set_caps` instead.
+> [!IMPORTANT]
+> **Indexer Migration Note:**
+> Previously, `LimitsUpdatedEvent` was also used for TVL and User caps (via the deprecated `set_limits` function). This usage is now discouraged. Indexers should transition to monitoring `TvlCapUpdatedEvent` (`"tvl_cap"`), `UserDepositCapUpdatedEvent` (`"user_cap"`), and `CapsUpdatedEvent` (`"caps_upd"`) for all cap-related updates. The field names `min`/`max` in `LimitsUpdatedEvent` should only be interpreted as per-transaction deposit limits moving forward.
 
 ```rust
 pub struct LimitsUpdatedEvent {
-    pub old_min: i128,    // Previous minimum deposit limit or user cap
-    pub new_min: i128,    // New minimum deposit limit or user cap
-    pub old_max: i128,    // Previous maximum deposit limit or TVL cap
-    pub new_max: i128,    // New maximum deposit limit or TVL cap
+    pub old_min: i128,    // Previous minimum deposit limit
+    pub new_min: i128,    // New minimum deposit limit
+    pub old_max: i128,    // Previous maximum deposit limit
+    pub new_max: i128,    // New maximum deposit limit
 }
 ```
 
-### 8b. CapsUpdatedEvent
+### 8a. TvlCapUpdatedEvent
+**Topic:** `"tvl_cap"`
+
+Emitted when the vault's total TVL cap is updated.
+
+```rust
+pub struct TvlCapUpdatedEvent {
+    pub old_cap: i128,    // Previous TVL cap
+    pub new_cap: i128,    // New TVL cap
+}
+```
+
+### 8b. UserDepositCapUpdatedEvent
+**Topic:** `"user_cap"`
+
+Emitted when the per-user deposit cap is updated.
+
+```rust
+pub struct UserDepositCapUpdatedEvent {
+    pub old_cap: i128,    // Previous per-user cap
+    pub new_cap: i128,    // New per-user cap
+}
+```
+
+### 8c. CapsUpdatedEvent
 **Topic:** `"caps_upd"`
 
 Emitted when user deposit and TVL caps are updated in a single transaction via `set_caps`.

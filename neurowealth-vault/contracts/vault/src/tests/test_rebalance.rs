@@ -272,6 +272,26 @@ fn test_rebalance_with_unsupported_protocol_panics() {
 }
 
 #[test]
+fn test_rebalance_unsupported_protocol_emits_no_events() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    // try_rebalance captures the panic but doesn't crash the test
+    let _result = client.try_rebalance(&symbol_short!("invalid"), &0_i128);
+
+    // Verify no rebalance events were published
+    let rebalance_events = find_events_by_topic(env.events().all(), &env, symbol_short!("rebalance"));
+    assert_eq!(
+        rebalance_events.len(),
+        0,
+        "No rebalance event should be emitted on failure"
+    );
+}
+
+#[test]
 fn test_blend_supply_and_withdraw_with_events() {
     let env = Env::default();
     env.mock_all_auths();

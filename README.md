@@ -171,7 +171,7 @@ Key Functions
 | `deposit` | Any verified user | Deposit USDC into the vault |
 | `withdraw` | User (their own funds) | Withdraw USDC back to wallet |
 | `withdraw_all` | User (their own funds) | Withdraw all USDC by burning all shares |
-| `rebalance` | AI Agent only | Move funds between yield strategies |
+| `rebalance` | AI Agent only | Move funds between yield strategies (supported: `blend`, `none`) |
 | `get_balance` | Anyone | Read a user's current balance |
 | `get_total_deposits` | Anyone | Read total vault TVL |
 | `get_exchange_rate` | Anyone | Read current exchange rate (assets per share * 10,000,000) |
@@ -355,11 +355,16 @@ Phase 3 — Scale
  NeuroWealth token for governance and fee sharing
 
 
-Contributing
-Contributions are welcome. Please open an issue first to discuss what you'd like to change.
-bash# Fork the repo, then:
-git checkout -b feature/your-feature-name
-git commit -m "feat: add your feature"
-git push origin feature/your-feature-name
-# Open a Pull Request
-Please make sure to run cargo test and npm test before submitting.
+## Contributing
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct, development setup, and the process for submitting pull requests.
+
+### Quick Start for Contributors
+1. **Fork the repo**, then:
+   ```bash
+   git checkout -b feature/your-feature-name
+   git commit -m "feat: add your feature"
+   git push origin feature/your-feature-name
+   ```
+2. **Open a Pull Request** against the `develop` branch.
+3. Please make sure to run `cargo test` and `npm test` before submitting.
+

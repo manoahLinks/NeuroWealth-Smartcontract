@@ -16,11 +16,18 @@ Instance storage is used for contract-wide configuration that is read frequently
 |-----|------|-------------|
 | `Agent` | Address | Authorized AI agent that can call rebalance() |
 | `UsdcToken` | Address | USDC token contract address |
-| `TotalDeposits` | i128 | Total USDC held in vault (excludes deployed yield) |
+| `TotalDeposits` | i128 | Total USDC principal deposited (excluding yield) |
+| `TotalShares` | i128 | Total vault shares in circulation |
+| `TotalAssets` | i128 | Total managed assets (principal + yield) |
+| `CurrentProtocol`| Symbol | Active protocol symbol ("blend", "none") |
+| `BlendPool` | Address | Blend pool contract address |
 | `Paused` | bool | Emergency pause state |
 | `Owner` | Address | Contract owner for administrative functions |
+| `PendingOwner` | Address | Pending owner for two-step transfer |
 | `TvLCap` | i128 | Maximum total value locked |
 | `UserDepositCap` | i128 | Maximum deposit per user |
+| `MinDeposit` | i128 | Minimum per-transaction deposit |
+| `MaxDeposit` | i128 | Maximum per-transaction deposit |
 | `Version` | u32 | Contract version for upgrade tracking |
 
 ### Persistent Storage
@@ -29,72 +36,70 @@ Persistent storage is used for per-user data that requires efficient access.
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `Balance(Address)` | i128 | Individual user USDC balance |
+| `Balance(Address)` | i128 | User's principal USDC deposit amount |
+| `Shares(Address)` | i128 | User's share balance (proportional ownership) |
 
 ## DataKey Structure
 
 ```rust
 pub enum DataKey {
-    Balance(Address),      // user -> usdc balance
-    TotalDeposits,        // total USDC in vault
+    Balance(Address),      // user -> usdc principal
+    Shares(Address),       // user -> share balance
+    TotalDeposits,        // total principal in vault
+    TotalShares,          // total shares in circulation
+    TotalAssets,          // total managed assets (principal + yield)
     Agent,                // authorized AI agent address
     UsdcToken,            // USDC token contract address
     Paused,               // emergency pause state
     Owner,                // contract owner address
+    PendingOwner,         // pending owner for two-step transfer
     TvLCap,               // maximum TVL
     UserDepositCap,       // per-user deposit limit
+    MinDeposit,           // minimum transaction amount
+    MaxDeposit,           // maximum transaction amount
     Version,              // contract version
+    BlendPool,            // Blend pool contract address
+    CurrentProtocol,      // symbol of active protocol
+    Deployer,             // deployer address (init only)
 }
 ```
 
 ## Share Accounting Model
 
-### Current Implementation (Phase 1)
+The vault uses a share-based accounting model compatible with the ERC-4626 standard. This allows the vault to accurately track each user's proportional ownership of the total managed assets, including accrued yield.
 
-The vault currently uses a simple 1:1 asset accounting model:
+### Current Implementation (Share-Based)
 
-```
-1 deposited USDC = 1 vault balance unit
-```
-
-This means:
-- Users receive exact balance matching their deposit
-- No share tokens are minted
-- Yield is tracked separately by the AI agent off-chain
-
-**Limitations**:
-- Cannot accurately track user's share of yield earned
-- No proportional withdrawal during yield deployment
-- Not ERC-4626 compliant
-
-### Future Implementation (Phase 2)
-
-Will upgrade to proper share-based accounting:
+The vault converts between USDC assets and vault shares using the current exchange rate:
 
 ```
 shares = (assets * total_shares) / total_assets
 assets = (shares * total_assets) / total_shares
 ```
 
-This enables:
-- Proportional claim on total vault assets
-- Accurate yield distribution
-- ERC-4626 compliance
-- Proper rebalancing during withdrawals
+**Key Features**:
+- **Proportional Yield**: Users benefit from yield accrual as the `TotalAssets` increases relative to `TotalShares`.
+- **Atomic Conversions**: Deposits mint shares and withdrawals burn shares based on the real-time asset/share ratio.
+- **ERC-4626 Compatibility**: Implements standard preview and conversion functions.
+
+### Historical Implementation (Phase 1 - Deprecated)
+
+Initial versions used a simple 1:1 asset accounting model:
+- 1 deposited USDC = 1 vault balance unit.
+- Limitations included inability to track share of yield earned and no proportional withdrawals.
 
 ## Rounding Rules
 
-### Current Implementation
+To protect the vault's solvency and prevent "dust" attacks, rounding rules are strictly applied:
 
-- Deposits: 1:1 (no rounding)
-- Withdrawals: 1:1 (no rounding)
-- Minimum deposit: 1 USDC (1,000,000 in 7-decimal units)
-
-### Future Implementation (Phase 2)
-
-- Deposits: Round down (favor vault, protect against dust)
-- Withdrawals: Round down (favor vault, protect against reentrancy)
-- Share minting: Round down
+- **Deposits**: 
+    - `preview_deposit_to_shares`: Rounds **down** (user may receive slightly fewer shares).
+- **Withdrawals**:
+    - `withdraw(assets)`: Rounds **up** when calculating shares to burn (user burns slightly more shares to cover the asset amount).
+    - `preview_withdraw(assets)`: Rounds **up** to match actual behavior.
+- **Conversions**:
+    - `convert_to_assets`: Rounds **down**.
+    - `convert_to_shares`: Rounds **down**.
 
 ## Event Schema
 
@@ -104,6 +109,7 @@ This enables:
 struct DepositEvent {
     user: Address,    // User who made the deposit
     amount: i128,     // Amount in 7-decimal USDC units
+    shares: i128,     // Number of shares minted
 }
 ```
 
@@ -115,6 +121,7 @@ struct DepositEvent {
 struct WithdrawEvent {
     user: Address,    // User who made the withdrawal
     amount: i128,     // Amount in 7-decimal USDC units
+    shares: i128,     // Number of shares burned
 }
 ```
 
@@ -123,9 +130,12 @@ struct WithdrawEvent {
 ### RebalanceEvent
 
 ```rust
-struct RebalanceEvent {
-    strategy: Symbol,  // Target strategy (e.g., "conservative", "balanced", "growth")
-    amount: i128,     // Amount being rebalanced (0 for full rebalance)
+pub struct RebalanceEvent {
+    pub protocol: Symbol,           // Target protocol ("blend", "none")
+    pub expected_apy: i128,         // Expected APY in basis points (850 = 8.5%)
+    pub status: Symbol,             // Status ("success", "failed", "partial")
+    pub amount_attempted: i128,     // Amount attempted to be moved
+    pub amount_moved: i128,          // Amount actually moved
 }
 ```
 
@@ -141,6 +151,41 @@ struct PauseEvent {
 ```
 
 **Topics**: `SymbolShort("pause")`
+
+### TvlCapUpdatedEvent
+
+```rust
+pub struct TvlCapUpdatedEvent {
+    pub old_cap: i128,
+    pub new_cap: i128,
+}
+```
+
+**Topics**: `SymbolShort("tvl_cap")`
+
+### UserDepositCapUpdatedEvent
+
+```rust
+pub struct UserDepositCapUpdatedEvent {
+    pub old_cap: i128,
+    pub new_cap: i128,
+}
+```
+
+**Topics**: `SymbolShort("user_cap")`
+
+### CapsUpdatedEvent
+
+```rust
+pub struct CapsUpdatedEvent {
+    pub old_user_cap: i128,
+    pub new_user_cap: i128,
+    pub old_tvl_cap: i128,
+    pub new_tvl_cap: i128,
+}
+```
+
+**Topics**: `SymbolShort("caps_upd")`
 
 ## Cross-Contract Integration Flow
 
@@ -179,86 +224,46 @@ AI Agent → Vault Contract
 3. AI agent monitors events via RPC/subscription
 4. Agent responds by calling `rebalance()` or adjusting off-chain state
 
-### Blend Protocol Integration (Phase 2)
+### Blend Protocol Integration
 
 ```
 Vault Contract → Blend Protocol Contract
                  ↑
-                 ├── lend() - deposit USDC for yield
-                 ├── redeem() - withdraw from lending
-                 └── get_balance() - check yield earned
+                 ├── submit_with_allowance() - lend USDC for yield
+                 ├── submit() - withdraw from lending
+                 └── balance() - check yield earned
 ```
 
-**Future Integration**:
-- Phase 2 will add direct Blend protocol interactions
-- Vault will call Blend's lending functions
-- Yield earned will be tracked in total assets
+The vault integrates with the Blend protocol to generate yield on deposited USDC. The AI agent triggers rebalancing to move funds into or out of Blend.
 
 ## Asset Flow Diagrams
 
 ### Deposit Flow
 
-```
-┌─────────┐    ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│  User   │───▶│ USDC Token  │───▶│ Vault        │───▶│ Event Emit  │
-│ Wallet  │    │ (transfer)  │    │ (balance++) │    │ (deposit)   │
-└─────────┘    └─────────────┘    └──────────────┘    └─────────────┘
-                                                       ↓
-                                              ┌─────────────┐
-                                              │ AI Agent    │
-                                              │ (monitors)  │
-                                              └─────────────┘
-```
-
-1. User authorizes deposit transaction
-2. USDC transferred from user to vault
-3. User balance updated in persistent storage
-4. Total deposits updated in instance storage
-5. DepositEvent emitted
-6. AI agent detects event, initiates yield deployment
+1. User authorizes deposit transaction.
+2. USDC transferred from user to vault.
+3. Vault calculates shares to mint based on current `TotalAssets` and `TotalShares`.
+4. User share balance updated in persistent storage.
+5. `TotalAssets` and `TotalShares` updated in instance storage.
+6. `DepositEvent` emitted.
 
 ### Withdraw Flow
 
-```
-┌─────────┐    ┌──────────────┐    ┌─────────────┐    ┌─────────────┐
-│  User   │───▶│ Vault        │───▶│ Balance     │───▶│ Event Emit  │
-│ Wallet  │    │ (auth check) │    │ (balance--) │    │ (withdraw)  │
-└─────────┘    └──────────────┘    └─────────────┘    └─────────────┘
-                    ↓                                           ↓
-            ┌─────────────┐                            ┌─────────────┐
-            │ USDC Token  │◀───────────────────────────│ AI Agent    │
-            │ (transfer)  │                            │ (monitors)  │
-            └─────────────┘                            └─────────────┘
-```
-
-1. User authorizes withdrawal transaction
-2. Vault verifies user balance
-3. User balance updated in persistent storage
-4. Total deposits updated in instance storage
-5. USDC transferred from vault to user
-6. WithdrawEvent emitted
-7. AI agent detects event, updates internal state
+1. User authorizes withdrawal transaction.
+2. Vault calculates shares to burn (rounding up to protect vault).
+3. If vault balance is insufficient, funds are withdrawn from active protocols (e.g., Blend).
+4. User share balance updated in persistent storage.
+5. `TotalAssets` and `TotalShares` updated in instance storage.
+6. USDC transferred from vault to user.
+7. `WithdrawEvent` emitted.
 
 ### Rebalance Flow (AI Agent)
 
-```
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐    ┌─────────────┐
-│ AI Agent    │───▶│ Vault        │───▶│ Auth Check  │───▶│ Event Emit  │
-│ (strategy)  │    │ (rebalance)  │    │ (agent)     │    │ (rebalance) │
-└─────────────┘    └──────────────┘    └─────────────┘    └─────────────┘
-                                                              ↓
-                                                      ┌─────────────┐
-                                                      │ External    │
-                                                      │ Protocols   │
-                                                      │ (Blend/DEX) │
-                                                      └─────────────┘
-```
-
-1. AI agent evaluates market conditions
-2. Agent calls `rebalance(strategy)` on vault
-3. Vault verifies caller is agent
-4. RebalanceEvent emitted
-5. Agent proceeds to execute strategy via external protocols
+1. AI agent evaluates market conditions.
+2. Agent calls `rebalance(protocol, expected_apy)` on vault.
+3. Vault verifies caller is agent and protocol is supported.
+4. Vault executes on-chain movement (e.g., supply to or withdraw from Blend).
+5. `RebalanceEvent` emitted.
 
 ## Upgrade Model
 
@@ -266,33 +271,20 @@ Vault Contract → Blend Protocol Contract
 
 When upgrading the contract, the following storage keys must be preserved:
 
-- All `Balance(Address)` entries
-- `TotalDeposits`
-- `Agent`
-- `UsdcToken`
-- `Paused`
-- `Owner`
-- `TvLCap`
-- `UserDepositCap`
+- `Shares(Address)` and `Balance(Address)`
+- `TotalDeposits`, `TotalShares`, `TotalAssets`
+- `Agent`, `UsdcToken`, `Owner`, `Paused`
+- `TvLCap`, `UserDepositCap`, `MinDeposit`, `MaxDeposit`
+- `BlendPool`, `CurrentProtocol`
 - `Version` (incremented)
 
 ### Version History
 
-| Version | Changes |
-|---------|---------|
-| 1 | Initial implementation with basic deposit/withdraw |
-| 2 | (Planned) ERC-4626 share accounting |
-| 3 | (Planned) Blend protocol integration |
-| 4 | (Planned) Multi-asset support |
-
-### Migration Considerations
-
-When upgrading to share-based accounting (Phase 2):
-
-1. Snapshot all user balances
-2. Mint shares 1:1 to existing balances
-3. Track total shares = total deposits
-4. Future deposits/withdrawals use share math
+| Version | Changes | Status |
+|---------|---------|--------|
+| 1 | Initial implementation with 1:1 accounting | Historical |
+| 2 | ERC-4626 share accounting and Blend integration | **Current** |
+| 3 | (Planned) Multi-asset support and advanced rebalancing | Future |
 
 ## Error Handling
 

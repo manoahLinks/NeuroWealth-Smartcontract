@@ -1283,6 +1283,12 @@ impl NeuroWealthVault {
         Self::require_not_paused(&env);
         Self::require_is_agent(&env);
 
+        // Validate protocol against allowlist
+        let supported_protocols = vec![&env, symbol_short!("blend"), symbol_short!("none")];
+        if !supported_protocols.contains(protocol.clone()) {
+            panic!("vault: unsupported protocol");
+        }
+
         let current_protocol: Symbol = env
             .storage()
             .instance()
@@ -1401,8 +1407,6 @@ impl NeuroWealthVault {
                     amount_moved,
                 },
             );
-        } else {
-            panic!("vault: unsupported protocol");
         }
     }
 

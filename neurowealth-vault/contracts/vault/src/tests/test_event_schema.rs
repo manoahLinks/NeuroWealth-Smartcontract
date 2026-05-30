@@ -10,11 +10,12 @@ use super::utils::*;
 use crate::{
     AgentUpdatedEvent, AssetsUpdatedEvent, BlendSupplyEvent, BlendWithdrawEvent, DepositEvent,
     EmergencyPausedEvent, LimitsUpdatedEvent, OwnershipTransferInitiatedEvent,
-    OwnershipTransferredEvent, RebalanceEvent, VaultInitializedEvent, VaultPausedEvent,
-    VaultUnpausedEvent, WithdrawEvent, TOPIC_AGENT_UPDATED, TOPIC_ASSETS_UPDATED,
-    TOPIC_BLEND_SUPPLY, TOPIC_BLEND_WITHDRAW, TOPIC_DEPOSIT, TOPIC_EMERGENCY_PAUSED, TOPIC_INIT,
-    TOPIC_LIMITS_UPDATED, TOPIC_OWNERSHIP_INITIATED, TOPIC_OWNERSHIP_TRANSFERRED, TOPIC_PAUSED,
-    TOPIC_REBALANCE, TOPIC_UNPAUSED, TOPIC_WITHDRAW,
+    OwnershipTransferredEvent, RebalanceEvent, TvlCapUpdatedEvent, UserDepositCapUpdatedEvent,
+    VaultInitializedEvent, VaultPausedEvent, VaultUnpausedEvent, WithdrawEvent,
+    TOPIC_AGENT_UPDATED, TOPIC_ASSETS_UPDATED, TOPIC_BLEND_SUPPLY, TOPIC_BLEND_WITHDRAW,
+    TOPIC_DEPOSIT, TOPIC_EMERGENCY_PAUSED, TOPIC_INIT, TOPIC_LIMITS_UPDATED,
+    TOPIC_OWNERSHIP_INITIATED, TOPIC_OWNERSHIP_TRANSFERRED, TOPIC_PAUSED, TOPIC_REBALANCE,
+    TOPIC_TVL_CAP_UPDATED, TOPIC_UNPAUSED, TOPIC_USER_CAP_UPDATED, TOPIC_WITHDRAW,
 };
 use soroban_sdk::{symbol_short, testutils::Address as _, Address, Env, TryFromVal};
 
@@ -144,6 +145,38 @@ fn test_event_schema_administrative_events() {
     assert_eq!(limits_event.new_min, new_min);
     assert_eq!(limits_event.old_max, 10_000_000_000_i128); // Default maximum
     assert_eq!(limits_event.new_max, new_max);
+
+    // Test TVL cap update event
+    let new_tvl_cap = 500_000_000_000_i128;
+    client.set_tvl_cap(&new_tvl_cap);
+
+    let tvl_events = find_events_by_topic(env.events().all(), &env, TOPIC_TVL_CAP_UPDATED);
+    assert_eq!(
+        tvl_events.len(),
+        1,
+        "Exactly one TVL cap update event should be emitted"
+    );
+
+    let (_, _, data) = &tvl_events[0];
+    let tvl_event = TvlCapUpdatedEvent::try_from_val(&env, data)
+        .expect("Should be a valid TvlCapUpdatedEvent");
+    assert_eq!(tvl_event.new_cap, new_tvl_cap);
+
+    // Test User cap update event
+    let new_user_cap = 50_000_000_000_i128;
+    client.set_user_deposit_cap(&new_user_cap);
+
+    let user_cap_events = find_events_by_topic(env.events().all(), &env, TOPIC_USER_CAP_UPDATED);
+    assert_eq!(
+        user_cap_events.len(),
+        1,
+        "Exactly one User cap update event should be emitted"
+    );
+
+    let (_, _, data) = &user_cap_events[0];
+    let user_cap_event = UserDepositCapUpdatedEvent::try_from_val(&env, data)
+        .expect("Should be a valid UserDepositCapUpdatedEvent");
+    assert_eq!(user_cap_event.new_cap, new_user_cap);
 }
 
 /// Test that rebalance events have correct topics and payload structure
@@ -394,6 +427,8 @@ fn test_all_event_topics_schema_compliance() {
     client.unpause(&owner);
     client.emergency_pause(&owner);
     client.set_deposit_limits(&2_000_000_i128, &20_000_000_000_i128);
+    client.set_tvl_cap(&500_000_000_000_i128);
+    client.set_user_deposit_cap(&50_000_000_000_i128);
 
     // Agent and assets events
     client.update_agent(&new_agent);
@@ -420,6 +455,8 @@ fn test_all_event_topics_schema_compliance() {
         ("unpaused", "Vault unpaused"),
         ("emerg", "Emergency pause"),
         ("l_upd", "Limits updated"),
+        ("tvl_cap", "TVL cap updated"),
+        ("user_cap", "User cap updated"),
         ("agent", "Agent updated"),
         ("own_init", "Ownership transfer initiated"),
         ("own_xfer", "Ownership transferred"),
@@ -484,6 +521,24 @@ fn test_all_event_topics_schema_compliance() {
             }
             "l_upd" => {
                 let events = find_events_by_topic(env.events().all(), &env, TOPIC_LIMITS_UPDATED);
+                assert!(
+                    !events.is_empty(),
+                    "Expected event topic '{}' for {} not found",
+                    topic_symbol,
+                    description
+                );
+            }
+            "tvl_cap" => {
+                let events = find_events_by_topic(env.events().all(), &env, TOPIC_TVL_CAP_UPDATED);
+                assert!(
+                    !events.is_empty(),
+                    "Expected event topic '{}' for {} not found",
+                    topic_symbol,
+                    description
+                );
+            }
+            "user_cap" => {
+                let events = find_events_by_topic(env.events().all(), &env, TOPIC_USER_CAP_UPDATED);
                 assert!(
                     !events.is_empty(),
                     "Expected event topic '{}' for {} not found",

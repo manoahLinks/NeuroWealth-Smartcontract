@@ -3,11 +3,12 @@
 use super::utils::*;
 use crate::{
     AgentUpdatedEvent, AssetsUpdatedEvent, BlendSupplyEvent, BlendWithdrawEvent, CapsUpdatedEvent,
-    DepositEvent, EmergencyPausedEvent, LimitsUpdatedEvent, RebalanceEvent, VaultInitializedEvent,
-    VaultPausedEvent, VaultUnpausedEvent, WithdrawEvent, TOPIC_AGENT_UPDATED, TOPIC_ASSETS_UPDATED,
-    TOPIC_BLEND_SUPPLY, TOPIC_BLEND_WITHDRAW, TOPIC_CAPS_UPDATED, TOPIC_DEPOSIT,
-    TOPIC_EMERGENCY_PAUSED, TOPIC_INIT, TOPIC_LIMITS_UPDATED, TOPIC_PAUSED, TOPIC_REBALANCE,
-    TOPIC_UNPAUSED, TOPIC_WITHDRAW,
+    DepositEvent, EmergencyPausedEvent, LimitsUpdatedEvent, RebalanceEvent, TvlCapUpdatedEvent,
+    UserDepositCapUpdatedEvent, VaultInitializedEvent, VaultPausedEvent, VaultUnpausedEvent,
+    WithdrawEvent, TOPIC_AGENT_UPDATED, TOPIC_ASSETS_UPDATED, TOPIC_BLEND_SUPPLY,
+    TOPIC_BLEND_WITHDRAW, TOPIC_CAPS_UPDATED, TOPIC_DEPOSIT, TOPIC_EMERGENCY_PAUSED, TOPIC_INIT,
+    TOPIC_LIMITS_UPDATED, TOPIC_PAUSED, TOPIC_REBALANCE, TOPIC_TVL_CAP_UPDATED, TOPIC_UNPAUSED,
+    TOPIC_USER_CAP_UPDATED, TOPIC_WITHDRAW,
 };
 use soroban_sdk::{symbol_short, testutils::Address as _, Address, BytesN, Env, TryFromVal};
 
@@ -271,6 +272,53 @@ fn test_set_deposit_limits_emits_limits_event_with_correct_payload() {
         event.new_max, new_max,
         "Event new_max should match set value"
     );
+}
+
+#[test]
+fn test_set_tvl_cap_emits_tvl_cap_event_with_correct_payload() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    let old_tvl_cap = 100_000_000_000_i128; // Default from initialize
+    let new_tvl_cap = 200_000_000_000_i128;
+    client.set_tvl_cap(&new_tvl_cap);
+
+    let tvl_events = find_events_by_topic(env.events().all(), &env, TOPIC_TVL_CAP_UPDATED);
+    assert!(!tvl_events.is_empty(), "set_tvl_cap should emit an event");
+
+    let (_, _, data) = &tvl_events[0];
+    let event =
+        TvlCapUpdatedEvent::try_from_val(&env, data).expect("Should be a TvlCapUpdatedEvent");
+    assert_eq!(event.old_cap, old_tvl_cap);
+    assert_eq!(event.new_cap, new_tvl_cap);
+}
+
+#[test]
+fn test_set_user_deposit_cap_emits_user_cap_event_with_correct_payload() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    let old_user_cap = 10_000_000_000_i128; // Default from initialize
+    let new_user_cap = 20_000_000_000_i128;
+    client.set_user_deposit_cap(&new_user_cap);
+
+    let user_events = find_events_by_topic(env.events().all(), &env, TOPIC_USER_CAP_UPDATED);
+    assert!(
+        !user_events.is_empty(),
+        "set_user_deposit_cap should emit an event"
+    );
+
+    let (_, _, data) = &user_events[0];
+    let event = UserDepositCapUpdatedEvent::try_from_val(&env, data)
+        .expect("Should be a UserDepositCapUpdatedEvent");
+    assert_eq!(event.old_cap, old_user_cap);
+    assert_eq!(event.new_cap, new_user_cap);
 }
 
 #[test]
