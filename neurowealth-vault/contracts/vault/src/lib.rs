@@ -2515,7 +2515,7 @@ impl NeuroWealthVault {
             env.storage().instance().has(&DataKey::Agent)
                 && env.storage().instance().has(&DataKey::UsdcToken)
                 && env.storage().instance().has(&DataKey::Owner),
-            "vault: not initialized"
+            "vault: not initialized."
         );
     }
 

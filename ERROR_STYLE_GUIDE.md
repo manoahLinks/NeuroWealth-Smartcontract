@@ -61,7 +61,7 @@ Used for:
 Examples:
 - `vault: already initialized`
 - `vault: paused`
-- `vault: not initialized`
+- `vault: not initialized.`
 
 ### Validation Errors
 Format: `vault: <field> <description>`
