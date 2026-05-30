@@ -565,6 +565,58 @@ fn test_event_payload_field_types() {
     let _shares_val: i128 = event.shares;
 }
 
+/// Test that Deposit and Withdraw events carry the user address as an indexed topic.
+///
+/// Indexers and AI agents can efficiently filter events by user without scanning
+/// full payloads by using the second topic (user address) directly.
+#[test]
+fn test_deposit_withdraw_user_indexed_topic() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner, usdc_token) = setup_vault_with_token(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    let user = Address::generate(&env);
+    let deposit_amount = 5_000_000_i128;
+    mint_and_deposit(&env, &client, &usdc_token, &user, deposit_amount);
+
+    let deposit_events = find_events_by_topic(env.events().all(), &env, TOPIC_DEPOSIT);
+    assert_eq!(deposit_events.len(), 1, "One deposit event expected");
+
+    let (_, topics, _) = &deposit_events[0];
+    let user_in_deposit_topics = (0..topics.len()).any(|j| {
+        topics
+            .get(j)
+            .and_then(|t| Address::try_from_val(&env, &t).ok())
+            .map(|a| a == user)
+            .unwrap_or(false)
+    });
+    assert!(
+        user_in_deposit_topics,
+        "DepositEvent must carry user address as an indexed topic"
+    );
+
+    let withdraw_amount = 2_000_000_i128;
+    client.withdraw(&user, &withdraw_amount);
+
+    let withdraw_events = find_events_by_topic(env.events().all(), &env, TOPIC_WITHDRAW);
+    assert_eq!(withdraw_events.len(), 1, "One withdraw event expected");
+
+    let (_, topics, _) = &withdraw_events[0];
+    let user_in_withdraw_topics = (0..topics.len()).any(|j| {
+        topics
+            .get(j)
+            .and_then(|t| Address::try_from_val(&env, &t).ok())
+            .map(|a| a == user)
+            .unwrap_or(false)
+    });
+    assert!(
+        user_in_withdraw_topics,
+        "WithdrawEvent must carry user address as an indexed topic"
+    );
+}
+
 /// Test event emission consistency across multiple operations
 #[test]
 fn test_event_emission_consistency() {

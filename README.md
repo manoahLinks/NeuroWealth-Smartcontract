@@ -192,6 +192,66 @@ Two-step ownership transfer prevents accidental ownership loss
 Vault balance verification ensures reported assets match actual holdings
 TTL extension on critical storage prevents data expiration
 
+Secure Deployment Sequence
+
+`initialize()` is protected against front-running: the contract verifies that the `deployer`
+argument + `salt` cryptographically reproduce the deployed contract address, **and** requires
+a live authorization signature from that deployer keypair. This means no third party can
+seize ownership even if they observe the deployment transaction in the mempool.
+
+Follow these steps in order to safely initialize a new vault:
+
+1. **Generate a deployer keypair** (one-time use, only for initialization):
+   ```bash
+   stellar keys generate deployer --network testnet
+   stellar keys address deployer   # note the deployer address
+   ```
+
+2. **Choose a salt** (32 bytes; any fixed value works — must be the same across steps):
+   ```bash
+   # example: all-zero salt
+   SALT="0000000000000000000000000000000000000000000000000000000000000000"
+   ```
+
+3. **Deploy the contract** using the deployer keypair and the chosen salt:
+   ```bash
+   stellar contract deploy \
+     --wasm target/wasm32-unknown-unknown/release/neurowealth_vault.wasm \
+     --source deployer \
+     --network testnet \
+     --salt $SALT
+   # save the output as VAULT_CONTRACT_ID
+   ```
+
+4. **Immediately call `initialize()`** from the same deployer keypair:
+   ```bash
+   stellar contract invoke \
+     --id $VAULT_CONTRACT_ID \
+     --source deployer \
+     --network testnet \
+     -- \
+     initialize \
+     --deployer $(stellar keys address deployer) \
+     --owner  $OWNER_ADDRESS \
+     --agent  $AGENT_ADDRESS \
+     --usdc_token $USDC_TOKEN_ADDRESS \
+     --salt   $SALT
+   ```
+   The contract rejects any caller whose `deployer` argument does not reproduce
+   `VAULT_CONTRACT_ID`, and additionally requires a valid signature from that
+   address via `deployer.require_auth()`.
+
+5. **Verify initialization** (read-only, no auth needed):
+   ```bash
+   stellar contract invoke --id $VAULT_CONTRACT_ID --source deployer \
+     --network testnet -- get_owner
+   stellar contract invoke --id $VAULT_CONTRACT_ID --source deployer \
+     --network testnet -- get_agent
+   ```
+
+6. **Secure or discard the deployer keypair** — it has no further privileged role
+   after initialization. The `owner` keypair is now the administrator.
+
 
 AI Agent
 The agent runs as a persistent background service with two main loops.

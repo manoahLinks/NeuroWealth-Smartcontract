@@ -40,9 +40,12 @@ pub struct VaultInitializedEvent {
 - Indexers record vault deployment details
 
 ### 2. DepositEvent
-**Topic:** `"deposit"`
+**Topics:** `("deposit", <user: Address>)`
 
 Emitted when a user deposits USDC into the vault.
+
+The user address is published as a second **indexed topic** so that indexers
+and AI agents can filter deposit events by user without scanning full payloads.
 
 ```rust
 pub struct DepositEvent {
@@ -52,15 +55,24 @@ pub struct DepositEvent {
 }
 ```
 
+**Topic tuple (position → value):**
+| Position | Type    | Value                  |
+|----------|---------|------------------------|
+| 0        | Symbol  | `"deposit"`            |
+| 1        | Address | depositing user address |
+
 **Usage:**
 - AI agents detect new deposits to deploy yield strategies
 - Frontend updates user balances in real-time
-- Indexers track deposit history for analytics
+- Indexers filter deposit history by user via topic[1]
 
 ### 3. WithdrawEvent
-**Topic:** `"withdraw"`
+**Topics:** `("withdraw", <user: Address>)`
 
-Emitted when a user withdraws USDC from the vault.
+Emitted when a user withdraws USDC from the vault (both `withdraw` and `withdraw_all`).
+
+The user address is published as a second **indexed topic** so that indexers
+and AI agents can filter withdrawal events by user without scanning full payloads.
 
 ```rust
 pub struct WithdrawEvent {
@@ -70,10 +82,16 @@ pub struct WithdrawEvent {
 }
 ```
 
+**Topic tuple (position → value):**
+| Position | Type    | Value                   |
+|----------|---------|-------------------------|
+| 0        | Symbol  | `"withdraw"`            |
+| 1        | Address | withdrawing user address |
+
 **Usage:**
 - AI agents update internal records after withdrawals
 - Frontend updates user balances
-- Indexers track withdrawal history
+- Indexers filter withdrawal history by user via topic[1]
 
 ### 4. RebalanceEvent
 **Topic:** `"rebalance"`

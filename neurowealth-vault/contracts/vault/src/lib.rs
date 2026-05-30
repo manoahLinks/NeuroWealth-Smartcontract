@@ -878,7 +878,7 @@ impl NeuroWealthVault {
         );
 
         env.events().publish(
-            (TOPIC_DEPOSIT,),
+            (TOPIC_DEPOSIT, user.clone()),
             DepositEvent {
                 user,
                 amount,
@@ -1060,7 +1060,7 @@ impl NeuroWealthVault {
         token_client.transfer(&env.current_contract_address(), &user, &usdc_to_return);
 
         env.events().publish(
-            (TOPIC_WITHDRAW,),
+            (TOPIC_WITHDRAW, user.clone()),
             WithdrawEvent {
                 user,
                 amount: usdc_to_return,
@@ -1228,7 +1228,7 @@ impl NeuroWealthVault {
         token_client.transfer(&env.current_contract_address(), &user, &usdc_to_return);
 
         env.events().publish(
-            (TOPIC_WITHDRAW,),
+            (TOPIC_WITHDRAW, user.clone()),
             WithdrawEvent {
                 user,
                 amount: usdc_to_return,
