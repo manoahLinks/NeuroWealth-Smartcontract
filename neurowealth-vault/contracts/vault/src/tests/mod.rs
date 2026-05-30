@@ -1,4 +1,5 @@
 mod test_access_control;
+mod test_auth;
 mod test_blend_integration;
 mod test_deposit;
 mod test_event_schema;
