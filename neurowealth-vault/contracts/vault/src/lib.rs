@@ -112,9 +112,24 @@
 use core::cmp::min;
 use soroban_sdk::{
     auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
-    contract, contractimpl, contracttype, symbol_short, token, vec, Address, BytesN, Env, IntoVal,
-    Symbol, Val, Vec,
+    contract, contractimpl, contracterror, contracttype, symbol_short, token, vec, Address, BytesN,
+    Env, IntoVal, Symbol, Val, Vec,
 };
+
+// ============================================================================
+// ERROR TYPES
+// ============================================================================
+
+#[contracterror]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VaultError {
+    /// Supplied min limit is negative.
+    NegativeMin = 1,
+    /// Supplied max limit is negative.
+    NegativeMax = 2,
+    /// max must be greater than or equal to min.
+    MaxLessThanMin = 3,
+}
 
 // ============================================================================
 // STORAGE KEYS
@@ -1632,18 +1647,18 @@ impl NeuroWealthVault {
     ///
     /// # Security
     /// - Only the owner can modify the limits
-    pub fn set_limits(env: Env, min: i128, max: i128) {
+    pub fn set_limits(env: Env, min: i128, max: i128) -> Result<(), VaultError> {
         Self::require_initialized(&env);
         Self::require_is_owner(&env);
 
         if min < 0 {
-            panic!("vault: min limit cannot be negative");
+            return Err(VaultError::NegativeMin);
         }
         if max < 0 {
-            panic!("vault: max limit cannot be negative");
+            return Err(VaultError::NegativeMax);
         }
         if max < min {
-            panic!("vault: max limit must be >= min limit");
+            return Err(VaultError::MaxLessThanMin);
         }
 
         let old_user_cap: i128 = env
@@ -1669,6 +1684,8 @@ impl NeuroWealthVault {
                 new_max: max,
             },
         );
+
+        Ok(())
     }
 
     /// Sets both the minimum and maximum deposit limits in a single transaction.
