@@ -69,84 +69,53 @@ Yield Protocols: Blend Protocol (lending), Stellar DEX (liquidity)
 Price Feeds: Stellar anchor price feeds
 
 
-Project Structure
-neurowealth/
-├── contracts/                  # Soroban smart contracts (Rust)
-│   └── vault/
-│       ├── Cargo.toml
-│       └── src/
-│           └── lib.rs          # Core vault contract
-├── agent/                      # AI agent backend
-│   ├── index.ts                # Agent entry point
-│   ├── stellar.ts              # Stellar transaction helpers
-│   ├── strategies/             # Yield strategy logic
-│   │   ├── conservative.ts
-│   │   ├── balanced.ts
-│   │   └── growth.ts
-│   ├── protocols/              # DeFi protocol integrations
-│   │   └── blend.ts
-│   └── nlp/                    # Natural language intent parsing
-│       └── parser.ts
-├── frontend/                   # Next.js web app
-│   ├── app/
-│   ├── components/
-│   └── lib/
-├── whatsapp/                   # WhatsApp bot handler
-│   ├── webhook.ts
-│   └── responses.ts
+## Project Structure
+```text
+NeuroWealth-Smartcontract/
+├── neurowealth-vault/          # Soroban smart contracts workspace
+│   ├── Cargo.toml
+│   └── contracts/
+│       └── vault/              # Core vault contract
+│           ├── Cargo.toml
+│           └── src/
+│               ├── lib.rs      # Core vault logic
+│               └── topics.rs   # Centralized event topics
 ├── scripts/                    # Deployment and utility scripts
-│   ├── deploy.sh
-│   └── initialize.sh
+│   ├── deploy-devnet.sh
+│   └── ...
+├── agent/                      # [Planned] AI agent backend
+├── frontend/                   # [Planned] Next.js web app
+├── whatsapp/                   # [Planned] WhatsApp bot handler
+├── ARCHITECTURE.md             # System architecture documentation
+├── EVENTS.md                   # Event schema documentation
+├── SECURITY.md                 # Security and trust model
 └── README.md
+```
 
-Getting Started
-Prerequisites
-bash# Install Rust and the wasm target
+## Getting Started
+
+### Prerequisites
+```bash
+# Install Rust and the wasm target
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 rustup target add wasm32-unknown-unknown
 
 # Install Stellar CLI
 cargo install --locked stellar-cli --features opt
+```
 
-# Install Node.js dependencies (for agent and frontend)
-npm install
-Environment Variables
-Create a .env file in the root:
-env# Stellar
-STELLAR_NETWORK=testnet
-STELLAR_RPC_URL=https://soroban-testnet.stellar.org
-AGENT_SECRET_KEY=your_agent_stellar_secret_key
+### Environment Variables
+Create a `.env` file in the root using `.env.devnet.template` as a guide.
 
-# Contract
-VAULT_CONTRACT_ID=your_deployed_contract_id
-USDC_TOKEN_ADDRESS=usdc_token_address_on_stellar
+### Build and Deploy the Contract
+```bash
+# Build the Soroban vault contract
+cd neurowealth-vault
+cargo build --release --target wasm32-unknown-unknown
 
-# AI
-ANTHROPIC_API_KEY=your_anthropic_api_key
-
-# WhatsApp
-TWILIO_ACCOUNT_SID=your_twilio_sid
-TWILIO_AUTH_TOKEN=your_twilio_token
-WHATSAPP_FROM=whatsapp:+14155238886
-
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/neurowealth
-Build and Deploy the Contract
-bash# Build the Soroban vault contract
-cd contracts
-stellar contract build
-
-# Deploy to testnet
-stellar contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/neurowealth_vault.wasm \
-  --source deployer \
-  --network testnet
-
-# Initialize the contract with your agent address and USDC token
-stellar contract invoke \
-  --id YOUR_CONTRACT_ID \
-  --source deployer \
-  --network testnet \
+# Deploy to testnet/devnet using provided scripts
+./scripts/deploy-devnet.sh
+```
   -- \
   initialize \
   --agent YOUR_AGENT_ADDRESS \
