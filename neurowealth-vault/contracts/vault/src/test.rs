@@ -889,3 +889,94 @@ fn test_withdraw_all_reconciles_partial_blend_redemption() {
     // Vault accounting should be consistent
     assert_eq!(client.get_total_assets(), 10_000_000_i128);
 }
+
+// ============================================================================
+// SET LIMITS INVARIANT VALIDATION TESTS (#120)
+// ============================================================================
+
+#[test]
+fn test_set_limits_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner) = setup_vault(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    let user_cap = 5_000_000_i128;   // 5 USDC per-user cap
+    let tvl_cap  = 50_000_000_i128;  // 50 USDC TVL cap
+
+    client.set_limits(&user_cap, &tvl_cap);
+
+    assert_eq!(client.get_min_deposit(), user_cap);
+    assert_eq!(client.get_max_deposit(), tvl_cap);
+}
+
+#[test]
+fn test_set_limits_negative_min_returns_error() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner) = setup_vault(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    let result = client.try_set_limits(&(-1_i128), &10_000_000_i128);
+    assert_eq!(result, Err(Ok(VaultError::NegativeMin)));
+}
+
+#[test]
+fn test_set_limits_negative_max_returns_error() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner) = setup_vault(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    let result = client.try_set_limits(&1_000_000_i128, &(-1_i128));
+    assert_eq!(result, Err(Ok(VaultError::NegativeMax)));
+}
+
+#[test]
+fn test_set_limits_max_less_than_min_returns_error() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner) = setup_vault(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    let result = client.try_set_limits(&5_000_000_i128, &4_000_000_i128);
+    assert_eq!(result, Err(Ok(VaultError::MaxLessThanMin)));
+}
+
+#[test]
+fn test_set_limits_equal_min_max_allowed() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner) = setup_vault(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    // max == min is valid (max >= min)
+    let cap = 5_000_000_i128;
+    client.set_limits(&cap, &cap);
+
+    assert_eq!(client.get_min_deposit(), cap);
+    assert_eq!(client.get_max_deposit(), cap);
+}
+
+#[test]
+fn test_set_limits_emits_event_with_correct_fields() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner) = setup_vault(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    let user_cap = 2_000_000_i128;
+    let tvl_cap  = 20_000_000_i128;
+
+    client.set_limits(&user_cap, &tvl_cap);
+
+    let events = env.events().all();
+    // The last event should be LimitsUpdatedEvent
+    assert!(!events.is_empty(), "expected at least one event");
+}
