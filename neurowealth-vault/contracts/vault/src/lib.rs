@@ -3275,7 +3275,7 @@ impl NeuroWealthVault {
 
         Self::require_min_out(withdrawn, min_out, "blend withdraw");
 
-        if withdrawn > 0 && amount == 0 {
+        if withdrawn > 0 {
             let remaining =
                 BlendPoolClient::get_balance(env, &pool_address, &usdc_token, &vault_address);
             if remaining == 0 {

@@ -611,3 +611,40 @@ fn test_integration_blend_withdraw_event_fields_on_protocol_switch() {
     );
     assert!(evt.success, "Withdrawal event must be marked successful");
 }
+
+/// User withdrawal that pulls all funds out of Blend must update
+/// CurrentProtocol to "none".
+#[test]
+fn test_integration_withdraw_all_updates_current_protocol_to_none() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, owner, usdc_token, blend_pool) =
+        setup_vault_with_token_and_blend(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+    let blend_client = MockBlendPoolClient::new(&env, &blend_pool);
+
+    client.set_blend_pool(&owner, &blend_pool);
+
+    let deposit_amount = 25_000_000_i128;
+    let user = Address::generate(&env);
+    mint_and_deposit(&env, &client, &usdc_token, &user, deposit_amount);
+
+    // Move funds into Blend
+    client.rebalance(&symbol_short!("blend"), &800_i128, &0_i128);
+    assert_eq!(client.get_current_protocol(), symbol_short!("blend"));
+    assert_eq!(blend_client.supplied(&usdc_token), deposit_amount);
+
+    // User withdraws everything
+    client.withdraw_all(&user);
+
+    // Vault should have pulled everything from Blend
+    assert_eq!(blend_client.supplied(&usdc_token), 0);
+
+    // CurrentProtocol should be updated to none
+    assert_eq!(
+        client.get_current_protocol(),
+        symbol_short!("none"),
+        "CurrentProtocol should switch to 'none' when all funds are withdrawn from Blend"
+    );
+}
