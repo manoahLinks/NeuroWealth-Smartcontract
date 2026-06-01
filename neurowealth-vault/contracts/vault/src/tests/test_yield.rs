@@ -28,7 +28,7 @@ fn test_agent_can_update_total_assets() {
 }
 
 #[test]
-#[should_panic(expected = "vault: only agent can update total assets")]
+#[should_panic(expected = "Error(Contract, #30)")]
 fn test_non_agent_cannot_update_total_assets() {
     let env = Env::default();
     env.mock_all_auths();
@@ -186,7 +186,7 @@ fn test_decrease_allowed_with_owner_cosign_within_cap() {
 /// Decrease is capped per-call: 10 % of 10 USDC = 1 USDC max. A 20 % loss in
 /// one call must be rejected.
 #[test]
-#[should_panic(expected = "vault: decrease exceeds maximum allowed bps")]
+#[should_panic(expected = "Error(Contract, #32)")]
 fn test_decrease_blocked_exceeding_cap() {
     let env = Env::default();
     env.mock_all_auths();
@@ -206,7 +206,7 @@ fn test_decrease_blocked_exceeding_cap() {
 /// Passing allow_decrease=false while new_total < old_total must always panic,
 /// regardless of whether the owner is present.
 #[test]
-#[should_panic(expected = "vault: total assets decrease not allowed")]
+#[should_panic(expected = "Error(Contract, #31)")]
 fn test_decrease_blocked_without_allow_decrease_flag() {
     let env = Env::default();
     env.mock_all_auths();

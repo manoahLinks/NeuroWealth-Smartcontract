@@ -201,7 +201,7 @@ fn test_withdraw_checks_effects_interactions_pattern() {
 }
 
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_withdraw_fails_when_paused() {
     let env = Env::default();
     env.mock_all_auths();
@@ -216,7 +216,7 @@ fn test_withdraw_fails_when_paused() {
 }
 
 #[test]
-#[should_panic(expected = "vault: amount must be positive")]
+#[should_panic(expected = "Error(Contract, #37)")]
 fn test_withdraw_rejects_zero_amount() {
     let env = Env::default();
     env.mock_all_auths();
@@ -230,7 +230,7 @@ fn test_withdraw_rejects_zero_amount() {
 }
 
 #[test]
-#[should_panic(expected = "vault: insufficient shares")]
+#[should_panic(expected = "Error(Contract, #8)")]
 fn test_withdraw_fails_insufficient_balance() {
     let env = Env::default();
     env.mock_all_auths();
@@ -266,7 +266,7 @@ fn test_withdraw_reentrancy_protection() {
 }
 
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_deposit_fails_when_paused() {
     let env = Env::default();
     env.mock_all_auths();
@@ -281,7 +281,7 @@ fn test_deposit_fails_when_paused() {
 }
 
 #[test]
-#[should_panic(expected = "vault: amount must be positive")]
+#[should_panic(expected = "Error(Contract, #37)")]
 fn test_deposit_rejects_zero_amount() {
     let env = Env::default();
     env.mock_all_auths();
@@ -295,7 +295,7 @@ fn test_deposit_rejects_zero_amount() {
 }
 
 #[test]
-#[should_panic(expected = "vault: below minimum deposit")]
+#[should_panic(expected = "Error(Contract, #38)")]
 fn test_deposit_enforces_minimum() {
     let env = Env::default();
     env.mock_all_auths();

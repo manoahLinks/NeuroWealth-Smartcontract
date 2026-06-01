@@ -112,7 +112,7 @@ fn test_set_tvl_cap_requires_owner_auth() {
 /// Negative: a non-owner that *does* hold a valid signature for `pause` is still
 /// rejected by the identity check. Auth is scoped to the attacker only.
 #[test]
-#[should_panic(expected = "vault: only owner can pause")]
+#[should_panic(expected = "Error(Contract, #19)")]
 fn test_non_owner_with_own_auth_cannot_pause() {
     let env = Env::default();
     let (contract_id, _agent, _owner, _usdc_token) = setup(&env);

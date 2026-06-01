@@ -79,7 +79,7 @@ fn test_set_deposit_limits_success() {
 }
 
 #[test]
-#[should_panic(expected = "vault: minimum deposit too low")]
+#[should_panic(expected = "Error(Contract, #26)")]
 fn test_set_deposit_limits_min_too_low() {
     let env = Env::default();
     env.mock_all_auths();
@@ -94,7 +94,7 @@ fn test_set_deposit_limits_min_too_low() {
 }
 
 #[test]
-#[should_panic(expected = "vault: maximum deposit below minimum")]
+#[should_panic(expected = "Error(Contract, #27)")]
 fn test_set_deposit_limits_max_less_than_min() {
     let env = Env::default();
     env.mock_all_auths();
@@ -109,7 +109,7 @@ fn test_set_deposit_limits_max_less_than_min() {
 }
 
 #[test]
-#[should_panic(expected = "vault: below minimum deposit")]
+#[should_panic(expected = "Error(Contract, #38)")]
 fn test_deposit_below_minimum() {
     let env = Env::default();
     env.mock_all_auths();
@@ -130,7 +130,7 @@ fn test_deposit_below_minimum() {
 }
 
 #[test]
-#[should_panic(expected = "vault: exceeds maximum deposit")]
+#[should_panic(expected = "Error(Contract, #39)")]
 fn test_deposit_above_maximum() {
     let env = Env::default();
     env.mock_all_auths();
@@ -193,7 +193,7 @@ fn test_deposit_at_maximum_succeeds() {
 }
 
 #[test]
-#[should_panic(expected = "vault: below minimum deposit")]
+#[should_panic(expected = "Error(Contract, #38)")]
 fn test_deposit_one_stroop_below_minimum() {
     let env = Env::default();
     env.mock_all_auths();
@@ -210,7 +210,7 @@ fn test_deposit_one_stroop_below_minimum() {
 }
 
 #[test]
-#[should_panic(expected = "vault: exceeds maximum deposit")]
+#[should_panic(expected = "Error(Contract, #39)")]
 fn test_deposit_one_stroop_above_maximum() {
     let env = Env::default();
     env.mock_all_auths();
@@ -634,7 +634,7 @@ fn test_owner_can_upgrade() {
 }
 
 #[test]
-#[should_panic(expected = "vault: caller is not the owner")]
+#[should_panic(expected = "Error(Contract, #34)")]
 fn test_non_owner_cannot_upgrade() {
     let env = Env::default();
     env.mock_all_auths();

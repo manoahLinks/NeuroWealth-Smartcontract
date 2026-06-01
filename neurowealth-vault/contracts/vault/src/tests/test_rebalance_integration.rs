@@ -198,9 +198,9 @@ fn test_integration_rebalance_to_blend_already_in_blend_is_idempotent() {
 // ============================================================================
 
 /// Rebalancing to Blend without a pool configured must panic with the
-/// "vault: blend pool not configured" message when the vault holds funds.
+/// "Error(Contract, #18)" message when the vault holds funds.
 #[test]
-#[should_panic(expected = "vault: blend pool not configured")]
+#[should_panic(expected = "Error(Contract, #18)")]
 fn test_integration_rebalance_to_blend_without_pool_panics_with_balance() {
     let env = Env::default();
     env.mock_all_auths();
@@ -219,7 +219,7 @@ fn test_integration_rebalance_to_blend_without_pool_panics_with_balance() {
 /// Rebalancing to Blend without a pool configured must panic even when the
 /// vault has zero balance (the check is on pool existence, not balance).
 #[test]
-#[should_panic(expected = "vault: blend pool not configured")]
+#[should_panic(expected = "Error(Contract, #18)")]
 fn test_integration_rebalance_to_blend_without_pool_panics_zero_balance() {
     let env = Env::default();
     env.mock_all_auths();
@@ -419,7 +419,7 @@ fn test_integration_rebalance_blend_zero_vault_balance_no_panic() {
 /// Unsupported protocol names must panic with the canonical error message
 /// so that callers receive a deterministic, explicit failure.
 #[test]
-#[should_panic(expected = "vault: unsupported protocol")]
+#[should_panic(expected = "Error(Contract, #17)")]
 fn test_integration_rebalance_unknown_protocol_is_explicit_failure() {
     let env = Env::default();
     env.mock_all_auths();
@@ -430,10 +430,10 @@ fn test_integration_rebalance_unknown_protocol_is_explicit_failure() {
     client.rebalance(&symbol_short!("aave"), &1200_i128, &0_i128);
 }
 
-/// Paused-vault rebalance must fail with an explicit "vault: paused" panic
+/// Paused-vault rebalance must fail with an explicit "Error(Contract, #35)" panic
 /// regardless of which protocol is targeted.
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_integration_rebalance_while_paused_explicit_failure() {
     let env = Env::default();
     env.mock_all_auths();

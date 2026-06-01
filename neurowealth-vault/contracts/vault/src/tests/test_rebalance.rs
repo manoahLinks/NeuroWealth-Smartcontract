@@ -201,7 +201,7 @@ fn test_rebalance_apy_parameter_accepted() {
 }
 
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_rebalance_while_paused_panics() {
     let env = Env::default();
     env.mock_all_auths();
@@ -217,7 +217,7 @@ fn test_rebalance_while_paused_panics() {
 }
 
 #[test]
-#[should_panic(expected = "vault: blend pool not configured")]
+#[should_panic(expected = "Error(Contract, #18)")]
 fn test_blend_rebalance_without_pool_panics() {
     let env = Env::default();
     env.mock_all_auths();
@@ -259,7 +259,7 @@ fn test_mock_token_transfer_from_uses_and_decrements_allowance() {
 }
 
 #[test]
-#[should_panic(expected = "vault: unsupported protocol")]
+#[should_panic(expected = "Error(Contract, #17)")]
 fn test_rebalance_with_unsupported_protocol_panics() {
     let env = Env::default();
     env.mock_all_auths();
@@ -591,7 +591,7 @@ fn test_rebalance_fails_when_switching_protocols_with_partial_exit() {
 
 /// When `min_out > 0`, a pool that supplies less than requested must panic (#150).
 #[test]
-#[should_panic(expected = "vault: blend supply received")]
+#[should_panic(expected = "Error(Contract, #42)")]
 fn test_rebalance_min_out_panics_when_pool_returns_less_than_requested() {
     let env = Env::default();
     env.mock_all_auths();

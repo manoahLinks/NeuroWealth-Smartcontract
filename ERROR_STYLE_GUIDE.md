@@ -1,6 +1,7 @@
 # NeuroWealth Vault Error Message Style Guide
 
-This document defines the standardized format and wording for all error messages in the NeuroWealth Vault contract.
+This document defines the standardized error codes and legacy wording for
+failures in the NeuroWealth Vault contract.
 
 ## Error Message Philosophy
 
@@ -10,7 +11,23 @@ Error messages should be:
 - **Concise**: Short but descriptive, avoiding unnecessary words
 - **Actionable**: When possible, indicate what can be done to fix the issue
 
-## Message Format
+## Contract Error Format
+
+Contract failures should use the central `VaultError` enum in
+`contracts/vault/src/lib.rs` and fail with Soroban contract errors, for example:
+
+```rust
+panic_with_error!(&env, VaultError::AmountMustBePositive);
+```
+
+Tests for these failures should assert the emitted contract error code, for
+example:
+
+```rust
+#[should_panic(expected = "Error(Contract, #37)")]
+```
+
+## Legacy Message Format
 
 All error messages follow this pattern:
 ```
@@ -21,6 +38,53 @@ Where:
 - `vault:` - Prefix indicating the error source
 - `<category>` - Error category (e.g., "amount", "auth", "state")
 - `<description>` - Brief, specific description
+
+## Contract Error Codes
+
+| Code | Variant | Legacy message |
+| --- | --- | --- |
+| 1 | `NegativeMin` | `vault: min limit cannot be negative` |
+| 2 | `NegativeMax` | `vault: max limit cannot be negative` |
+| 3 | `MaxLessThanMin` | `vault: max limit must be >= min limit` |
+| 4 | `AlreadyInitialized` | `vault: already initialized` |
+| 5 | `UnauthorizedDeployer` | `vault: unauthorized deployer` |
+| 6 | `SharesToMintMustBePositive` | `vault: shares to mint must be positive` |
+| 7 | `InsufficientLiquidity` | `vault: insufficient liquidity` |
+| 8 | `InsufficientShares` | `vault: insufficient shares` |
+| 9 | `NoAssetsToWithdraw` | `vault: no assets to withdraw` |
+| 10 | `SharesToBurnMustBePositive` | `vault: shares to burn must be positive` |
+| 11 | `InsufficientSharesForRequestedAmount` | `vault: insufficient shares for requested amount` |
+| 12 | `NoSharesToWithdraw` | `vault: no shares to withdraw` |
+| 13 | `NoLiquidityAvailable` | `vault: no liquidity available` |
+| 14 | `NoAssetsToReturn` | `vault: no assets to return` |
+| 15 | `NoSharesToBurn` | `vault: no shares to burn` |
+| 16 | `MinOutMustBeNonNegative` | `vault: min_out must be non-negative` |
+| 17 | `UnsupportedProtocol` | `vault: unsupported protocol` |
+| 18 | `BlendPoolNotConfigured` | `vault: blend pool not configured` |
+| 19 | `OnlyOwnerCanPause` | `vault: only owner can pause` |
+| 20 | `OnlyOwnerCanUnpause` | `vault: only owner can unpause` |
+| 21 | `NotPaused` | `vault: not paused` |
+| 22 | `OnlyOwnerCanEmergencyPause` | `vault: only owner can emergency pause` |
+| 23 | `TvlCapCannotBeNegative` | `vault: tvl cap cannot be negative` |
+| 24 | `UserDepositCapCannotBeNegative` | `vault: user deposit cap cannot be negative` |
+| 25 | `TvlCapBelowUserDepositCap` | `vault: tvl cap must be >= user deposit cap` |
+| 26 | `MinimumDepositTooLow` | `vault: minimum deposit too low` |
+| 27 | `MaximumDepositBelowMinimum` | `vault: maximum deposit below minimum` |
+| 28 | `OnlyOwnerCanSetBlendPool` | `vault: only owner can set blend pool` |
+| 29 | `CallerIsNotPendingOwner` | `vault: caller is not the pending owner` |
+| 30 | `OnlyAgentCanUpdateTotalAssets` | `vault: only agent can update total assets` |
+| 31 | `TotalAssetsDecreaseNotAllowed` | `vault: total assets decrease not allowed` |
+| 32 | `DecreaseExceedsMaximumAllowedBps` | `vault: decrease exceeds maximum allowed bps` |
+| 33 | `InsufficientBalanceForReportedAssets` | `vault: insufficient balance for reported assets` |
+| 34 | `CallerIsNotOwner` | `vault: caller is not the owner` |
+| 35 | `Paused` | `vault: paused` |
+| 36 | `NotInitialized` | `vault: not initialized.` |
+| 37 | `AmountMustBePositive` | `vault: amount must be positive` |
+| 38 | `BelowMinimumDeposit` | `vault: below minimum deposit` |
+| 39 | `MaximumDepositExceeded` | `vault: maximum deposit exceeded` |
+| 40 | `ExceedsUserDepositCap` | `vault: exceeds user deposit cap` |
+| 41 | `ExceedsTvlCap` | `vault: exceeds TVL cap` |
+| 42 | `MinOutNotMet` | `vault: <leg> received <actual> below min_out <min_out>` |
 
 ## Error Categories
 
@@ -184,15 +248,15 @@ Examples:
 ### When Adding New Errors
 
 1. Check if an existing message covers the case
-2. Choose the appropriate category
-3. Follow the format: `vault: <category> <description>`
-4. Keep it under 50 characters when possible
-5. Update tests to use the exact message
+2. Add a new `VaultError` variant with the next stable numeric code
+3. Choose the appropriate category and legacy wording for documentation
+4. Keep legacy wording under 50 characters when possible
+5. Update tests to use the exact contract error code
 
 ### When Updating Existing Errors
 
-1. Update the error message in the contract
-2. Update all test expectations
+1. Update the `VaultError` mapping in the contract
+2. Update all test expectations to the contract error code
 3. Update this documentation
 4. Consider backward compatibility for external integrators
 
@@ -200,13 +264,13 @@ Examples:
 
 All error messages must have corresponding tests that:
 1. Trigger the error condition
-2. Verify the exact error message
+2. Verify the exact contract error code
 3. Use `#[should_panic(expected = "...")]` attribute
 
 Example:
 ```rust
 #[test]
-#[should_panic(expected = "vault: amount must be positive")]
+#[should_panic(expected = "Error(Contract, #37)")]
 fn test_deposit_zero_amount_panics() {
     // Test code that triggers the error
 }
@@ -224,7 +288,8 @@ When updating error messages:
 ## Review Checklist
 
 Before finalizing error messages:
-- [ ] Follows `vault: <category> <description>` format
+- [ ] Uses a stable `VaultError` code
+- [ ] Legacy wording follows `vault: <category> <description>` format
 - [ ] Uses consistent terminology
 - [ ] Is clear and actionable
 - [ ] Has corresponding tests

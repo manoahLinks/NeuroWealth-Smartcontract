@@ -34,8 +34,7 @@ fn setup_all_in_blend(
     NeuroWealthVaultClient<'_>,
     TestTokenClient<'_>,
 ) {
-    let (contract_id, agent, owner, usdc_token, blend_pool) =
-        setup_vault_with_token_and_blend(env);
+    let (contract_id, agent, owner, usdc_token, blend_pool) = setup_vault_with_token_and_blend(env);
     let client = NeuroWealthVaultClient::new(env, &contract_id);
     let token_client = TestTokenClient::new(env, &usdc_token);
 
@@ -51,7 +50,14 @@ fn setup_all_in_blend(
     assert_eq!(token_client.balance(&contract_id), 0);
     assert_eq!(token_client.balance(&blend_pool), amount);
 
-    (contract_id, agent, usdc_token, blend_pool, client, token_client)
+    (
+        contract_id,
+        agent,
+        usdc_token,
+        blend_pool,
+        client,
+        token_client,
+    )
 }
 
 // ============================================================================
@@ -141,7 +147,11 @@ fn test_update_total_assets_partial_blend_deployment_succeeds() {
 
     // Partial deployment: 20 in Blend, 10 idle
     assert_eq!(deployed, blend_limit, "blend pool should have 20 USDC");
-    assert_eq!(idle, deposit_total - blend_limit, "vault should have 10 USDC idle");
+    assert_eq!(
+        idle,
+        deposit_total - blend_limit,
+        "vault should have 10 USDC idle"
+    );
 
     // total_available = 10 + 20 = 30 → reporting 30 must succeed
     client.update_total_assets(&agent, &deposit_total, &false, &0);
@@ -191,7 +201,7 @@ fn test_update_total_assets_partial_blend_plus_yield_succeeds() {
 /// The security check must still reject a report where new_total exceeds the
 /// sum of idle balance + deployed Blend position.
 #[test]
-#[should_panic(expected = "vault: insufficient balance for reported assets")]
+#[should_panic(expected = "Error(Contract, #33)")]
 fn test_update_total_assets_rejects_inflation_beyond_idle_plus_blend() {
     let env = Env::default();
     env.mock_all_auths();
@@ -207,7 +217,7 @@ fn test_update_total_assets_rejects_inflation_beyond_idle_plus_blend() {
 /// Partial deployment: total available = 10 idle + 20 blend = 30.
 /// Attempting to report 31 must be rejected.
 #[test]
-#[should_panic(expected = "vault: insufficient balance for reported assets")]
+#[should_panic(expected = "Error(Contract, #33)")]
 fn test_update_total_assets_rejects_inflation_beyond_partial_deployment() {
     let env = Env::default();
     env.mock_all_auths();
@@ -264,7 +274,7 @@ fn test_update_total_assets_idle_only_no_blend_succeeds() {
 
 /// Idle-only: attempting to report more than the vault holds must be rejected.
 #[test]
-#[should_panic(expected = "vault: insufficient balance for reported assets")]
+#[should_panic(expected = "Error(Contract, #33)")]
 fn test_update_total_assets_idle_only_rejects_over_balance() {
     let env = Env::default();
     env.mock_all_auths();

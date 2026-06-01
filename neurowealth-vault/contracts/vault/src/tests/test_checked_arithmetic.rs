@@ -96,7 +96,7 @@ fn test_user_deposit_cap_boundary() {
 /// Withdrawing more than the user holds must fail via the checked share path
 /// rather than underflowing the share accounting.
 #[test]
-#[should_panic(expected = "vault: insufficient shares for requested amount")]
+#[should_panic(expected = "Error(Contract, #11)")]
 fn test_withdraw_share_underflow_is_checked() {
     let env = Env::default();
     env.mock_all_auths();

@@ -29,7 +29,7 @@ fn test_deposit_overflow() {
 }
 
 #[test]
-#[should_panic(expected = "vault: insufficient shares for requested amount")]
+#[should_panic(expected = "Error(Contract, #11)")]
 fn test_withdraw_underflow() {
     let env = Env::default();
     env.mock_all_auths();
@@ -43,7 +43,7 @@ fn test_withdraw_underflow() {
 
     // Try to withdraw 11 USDC - this should fail at the share conversion or balance check.
     // Our contract has:
-    // assert!(user_shares >= shares_to_burn, "vault: insufficient shares for requested amount");
+    // assert!(user_shares >= shares_to_burn, "Error(Contract, #11)");
     // So it might panic there with a different message.
 
     client.withdraw(&user, &11_000_000);

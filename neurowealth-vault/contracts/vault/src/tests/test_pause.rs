@@ -49,7 +49,7 @@ fn test_agent_can_emergency_pause() {
 }
 
 #[test]
-#[should_panic(expected = "vault: only owner can unpause")]
+#[should_panic(expected = "Error(Contract, #20)")]
 fn test_non_owner_cannot_unpause() {
     let env = Env::default();
     env.mock_all_auths();
@@ -82,7 +82,7 @@ fn test_unauthorized_users_cannot_pause() {
 }
 
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_deposit_blocked_while_paused() {
     let env = Env::default();
     env.mock_all_auths();
@@ -102,7 +102,7 @@ fn test_deposit_blocked_while_paused() {
 }
 
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_withdraw_blocked_while_paused() {
     let env = Env::default();
     env.mock_all_auths();
@@ -123,7 +123,7 @@ fn test_withdraw_blocked_while_paused() {
 }
 
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_rebalance_blocked_while_paused() {
     let env = Env::default();
     env.mock_all_auths();

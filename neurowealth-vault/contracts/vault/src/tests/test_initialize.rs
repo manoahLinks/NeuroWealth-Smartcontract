@@ -35,7 +35,7 @@ fn test_initialize_happy_path() {
 }
 
 #[test]
-#[should_panic(expected = "vault: already initialized")]
+#[should_panic(expected = "Error(Contract, #4)")]
 fn test_double_initialize_panics() {
     let env = Env::default();
     env.mock_all_auths();
@@ -54,7 +54,7 @@ fn test_double_initialize_panics() {
     let usdc_token = Address::generate(&env);
 
     client.initialize(&deployer, &owner, &agent, &usdc_token, &salt);
-    // Second call should panic with "vault: already initialized"
+    // Second call should panic with "Error(Contract, #4)"
     client.initialize(&deployer, &owner, &agent, &usdc_token, &salt);
 }
 
@@ -206,7 +206,7 @@ fn test_initialize_event_includes_owner_and_agent() {
 }
 
 #[test]
-#[should_panic(expected = "vault: unauthorized deployer")]
+#[should_panic(expected = "Error(Contract, #5)")]
 fn test_unauthorized_deployer_initialize_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -275,7 +275,7 @@ fn test_front_runner_without_deployer_auth_is_rejected() {
 /// The contract derives `expected = deployer_address × salt → contract_address` on-chain
 /// and rejects any deployer whose address does not reproduce the current contract address.
 #[test]
-#[should_panic(expected = "vault: unauthorized deployer")]
+#[should_panic(expected = "Error(Contract, #5)")]
 fn test_front_runner_with_own_address_as_deployer_is_rejected() {
     let env = Env::default();
     env.mock_all_auths();
@@ -295,7 +295,7 @@ fn test_front_runner_with_own_address_as_deployer_is_rejected() {
 
     // The attacker passes their own address as deployer so they can satisfy
     // require_auth() with their own keys, but the derived contract address
-    // will not match contract_id → "vault: unauthorized deployer".
+    // will not match contract_id → "Error(Contract, #5)".
     let attacker = Address::generate(&env);
     client.initialize(
         &attacker,

@@ -50,7 +50,7 @@ fn test_set_caps() {
 }
 
 #[test]
-#[should_panic(expected = "vault: user deposit cap cannot be negative")]
+#[should_panic(expected = "Error(Contract, #24)")]
 fn test_set_caps_negative_user_cap() {
     let env = Env::default();
     env.mock_all_auths();
@@ -62,7 +62,7 @@ fn test_set_caps_negative_user_cap() {
 }
 
 #[test]
-#[should_panic(expected = "vault: tvl cap cannot be negative")]
+#[should_panic(expected = "Error(Contract, #23)")]
 fn test_set_caps_negative_tvl_cap() {
     let env = Env::default();
     env.mock_all_auths();
@@ -74,7 +74,7 @@ fn test_set_caps_negative_tvl_cap() {
 }
 
 #[test]
-#[should_panic(expected = "vault: tvl cap must be >= user deposit cap")]
+#[should_panic(expected = "Error(Contract, #25)")]
 fn test_set_caps_tvl_cap_less_than_user_cap() {
     let env = Env::default();
     env.mock_all_auths();
@@ -104,7 +104,7 @@ fn test_set_deposit_limits() {
 }
 
 #[test]
-#[should_panic(expected = "vault: minimum deposit too low")]
+#[should_panic(expected = "Error(Contract, #26)")]
 fn test_set_deposit_limits_min_too_low() {
     let env = Env::default();
     env.mock_all_auths();
@@ -119,7 +119,7 @@ fn test_set_deposit_limits_min_too_low() {
 }
 
 #[test]
-#[should_panic(expected = "vault: maximum deposit below minimum")]
+#[should_panic(expected = "Error(Contract, #27)")]
 fn test_set_deposit_limits_max_less_than_min() {
     let env = Env::default();
     env.mock_all_auths();
@@ -134,7 +134,7 @@ fn test_set_deposit_limits_max_less_than_min() {
 }
 
 #[test]
-#[should_panic(expected = "vault: exceeds TVL cap")]
+#[should_panic(expected = "Error(Contract, #41)")]
 fn test_deposit_enforces_tvl_cap() {
     let env = Env::default();
     env.mock_all_auths();
@@ -155,7 +155,7 @@ fn test_deposit_enforces_tvl_cap() {
 }
 
 #[test]
-#[should_panic(expected = "vault: exceeds user deposit cap")]
+#[should_panic(expected = "Error(Contract, #40)")]
 fn test_deposit_enforces_user_cap() {
     let env = Env::default();
     env.mock_all_auths();
@@ -227,7 +227,7 @@ fn test_get_min_deposit_uses_default_when_key_missing() {
 }
 
 #[test]
-#[should_panic(expected = "vault: below minimum deposit")]
+#[should_panic(expected = "Error(Contract, #38)")]
 fn test_deposit_uses_default_minimum_when_key_missing() {
     let env = Env::default();
     env.mock_all_auths();
@@ -254,7 +254,7 @@ fn test_deposit_uses_default_minimum_when_key_missing() {
 // ---- set_tvl_cap ------------------------------------------------------------
 
 #[test]
-#[should_panic(expected = "vault: tvl cap cannot be negative")]
+#[should_panic(expected = "Error(Contract, #23)")]
 fn test_set_tvl_cap_rejects_negative() {
     let env = Env::default();
     env.mock_all_auths();
@@ -281,7 +281,7 @@ fn test_set_tvl_cap_accepts_zero() {
 // ---- set_user_deposit_cap ---------------------------------------------------
 
 #[test]
-#[should_panic(expected = "vault: user deposit cap cannot be negative")]
+#[should_panic(expected = "Error(Contract, #24)")]
 fn test_set_user_deposit_cap_rejects_negative() {
     let env = Env::default();
     env.mock_all_auths();
@@ -308,7 +308,7 @@ fn test_set_user_deposit_cap_accepts_zero() {
 // ---- set_limits (deprecated) ------------------------------------------------
 
 #[test]
-#[should_panic(expected = "vault: min limit cannot be negative")]
+#[should_panic(expected = "Error(Contract, #1)")]
 fn test_set_limits_rejects_negative_min() {
     let env = Env::default();
     env.mock_all_auths();
@@ -321,7 +321,7 @@ fn test_set_limits_rejects_negative_min() {
 }
 
 #[test]
-#[should_panic(expected = "vault: max limit cannot be negative")]
+#[should_panic(expected = "Error(Contract, #2)")]
 fn test_set_limits_rejects_negative_max() {
     let env = Env::default();
     env.mock_all_auths();
@@ -356,7 +356,7 @@ fn test_set_limits_accepts_zero_values() {
 /// After yield pushes the user's asset value to the cap, any further deposit
 /// must be rejected even though the user's principal is still below the cap.
 #[test]
-#[should_panic(expected = "vault: exceeds user deposit cap")]
+#[should_panic(expected = "Error(Contract, #40)")]
 fn test_deposit_cap_blocks_deposit_when_yield_fills_cap() {
     let env = Env::default();
     env.mock_all_auths();
@@ -423,7 +423,7 @@ fn test_deposit_cap_allows_deposit_when_assets_still_under_cap_after_yield() {
 /// Yield that only partially closes the gap still blocks a deposit that would
 /// push total asset value over the cap.
 #[test]
-#[should_panic(expected = "vault: exceeds user deposit cap")]
+#[should_panic(expected = "Error(Contract, #40)")]
 fn test_deposit_cap_blocks_when_yield_partially_fills_cap() {
     let env = Env::default();
     env.mock_all_auths();

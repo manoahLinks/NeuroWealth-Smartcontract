@@ -113,8 +113,8 @@
 use core::cmp::min;
 use soroban_sdk::{
     auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
-    contract, contractimpl, contracterror, contracttype, symbol_short, token, vec, Address, BytesN,
-    Env, IntoVal, Symbol, Val, Vec,
+    contract, contracterror, contractimpl, contracttype, panic_with_error, symbol_short, token,
+    vec, Address, BytesN, Env, IntoVal, Symbol, Val, Vec,
 };
 
 // ============================================================================
@@ -130,6 +130,84 @@ pub enum VaultError {
     NegativeMax = 2,
     /// max must be greater than or equal to min.
     MaxLessThanMin = 3,
+    /// Vault has already been initialized.
+    AlreadyInitialized = 4,
+    /// Initializer is not the expected deployer.
+    UnauthorizedDeployer = 5,
+    /// Minted shares must be positive.
+    SharesToMintMustBePositive = 6,
+    /// Vault has no liquidity for the requested withdrawal.
+    InsufficientLiquidity = 7,
+    /// User has insufficient shares.
+    InsufficientShares = 8,
+    /// Vault has no assets to withdraw.
+    NoAssetsToWithdraw = 9,
+    /// Burned shares must be positive.
+    SharesToBurnMustBePositive = 10,
+    /// User has insufficient shares for the requested amount.
+    InsufficientSharesForRequestedAmount = 11,
+    /// User has no shares to withdraw.
+    NoSharesToWithdraw = 12,
+    /// Vault has no liquidity available.
+    NoLiquidityAvailable = 13,
+    /// Vault has no assets to return.
+    NoAssetsToReturn = 14,
+    /// Vault has no shares to burn.
+    NoSharesToBurn = 15,
+    /// min_out must be non-negative.
+    MinOutMustBeNonNegative = 16,
+    /// Protocol is not supported.
+    UnsupportedProtocol = 17,
+    /// Blend pool is not configured.
+    BlendPoolNotConfigured = 18,
+    /// Caller is not allowed to pause.
+    OnlyOwnerCanPause = 19,
+    /// Caller is not allowed to unpause.
+    OnlyOwnerCanUnpause = 20,
+    /// Vault is not paused.
+    NotPaused = 21,
+    /// Caller is not allowed to emergency pause.
+    OnlyOwnerCanEmergencyPause = 22,
+    /// TVL cap cannot be negative.
+    TvlCapCannotBeNegative = 23,
+    /// User deposit cap cannot be negative.
+    UserDepositCapCannotBeNegative = 24,
+    /// TVL cap must be greater than or equal to user deposit cap.
+    TvlCapBelowUserDepositCap = 25,
+    /// Minimum deposit is below the allowed floor.
+    MinimumDepositTooLow = 26,
+    /// Maximum deposit is below the minimum.
+    MaximumDepositBelowMinimum = 27,
+    /// Caller is not allowed to set Blend pool.
+    OnlyOwnerCanSetBlendPool = 28,
+    /// Caller is not the pending owner.
+    CallerIsNotPendingOwner = 29,
+    /// Caller is not allowed to update total assets.
+    OnlyAgentCanUpdateTotalAssets = 30,
+    /// Total assets decrease requires explicit allowance.
+    TotalAssetsDecreaseNotAllowed = 31,
+    /// Total assets decrease exceeds configured maximum bps.
+    DecreaseExceedsMaximumAllowedBps = 32,
+    /// Vault balance is insufficient for reported assets.
+    InsufficientBalanceForReportedAssets = 33,
+    /// Caller is not the owner.
+    CallerIsNotOwner = 34,
+    /// Vault is paused.
+    Paused = 35,
+    /// Vault is not initialized.
+    NotInitialized = 36,
+    /// Amount must be positive.
+    AmountMustBePositive = 37,
+    /// Deposit is below the configured minimum.
+    BelowMinimumDeposit = 38,
+    /// Deposit exceeds the configured maximum.
+    MaximumDepositExceeded = 39,
+    /// Deposit exceeds user cap.
+    ExceedsUserDepositCap = 40,
+    /// Deposit exceeds TVL cap.
+    ExceedsTvlCap = 41,
+    /// A protocol leg returned less than min_out.
+    MinOutNotMet = 42,
 }
 
 // ============================================================================
@@ -685,6 +763,13 @@ pub struct NeuroWealthVault;
 
 #[contractimpl]
 impl NeuroWealthVault {
+    #[inline]
+    fn require(env: &Env, condition: bool, error: VaultError) {
+        if !condition {
+            panic_with_error!(env, error);
+        }
+    }
+
     // ==========================================================================
     // INITIALIZATION
     // ==========================================================================
@@ -733,7 +818,7 @@ impl NeuroWealthVault {
         salt: BytesN<32>,
     ) {
         if env.storage().instance().has(&DataKey::Agent) {
-            panic!("vault: already initialized");
+            panic_with_error!(&env, VaultError::AlreadyInitialized);
         }
 
         // Verify the deployer is the one that actually deployed the contract
@@ -742,7 +827,7 @@ impl NeuroWealthVault {
             .with_address(deployer.clone(), salt)
             .deployed_address();
         if expected_contract_address != env.current_contract_address() {
-            panic!("vault: unauthorized deployer");
+            panic_with_error!(&env, VaultError::UnauthorizedDeployer);
         }
 
         // Verify the deployer is calling - this prevents front-running
@@ -849,7 +934,7 @@ impl NeuroWealthVault {
         user.require_auth();
 
         Self::require_not_paused(&env);
-        Self::require_positive_amount(amount);
+        Self::require_positive_amount(&env, amount);
         Self::require_minimum_deposit(&env, amount);
         Self::require_maximum_deposit(&env, amount);
         Self::require_within_deposit_cap(&env, &user, amount);
@@ -890,7 +975,11 @@ impl NeuroWealthVault {
         // can't move the price) and the minimum-deposit floor, this defeats the
         // first-depositor/donation inflation attack. See `deposit` docs.
         let shares_to_mint = Self::convert_to_shares_internal(&env, amount);
-        assert!(shares_to_mint > 0, "vault: shares to mint must be positive");
+        Self::require(
+            &env,
+            shares_to_mint > 0,
+            VaultError::SharesToMintMustBePositive,
+        );
 
         // Update user shares
         let current_shares: i128 = env
@@ -979,7 +1068,7 @@ impl NeuroWealthVault {
         user.require_auth();
 
         Self::require_not_paused(&env);
-        Self::require_positive_amount(amount);
+        Self::require_positive_amount(&env, amount);
 
         // Check if funds are deployed in Blend and need to be retrieved
         let current_protocol: Symbol = env
@@ -1017,7 +1106,11 @@ impl NeuroWealthVault {
             }
         }
 
-        assert!(actual_to_return > 0, "vault: insufficient liquidity");
+        Self::require(
+            &env,
+            actual_to_return > 0,
+            VaultError::InsufficientLiquidity,
+        );
 
         // Share-based withdrawal:
         // - Convert reconciled asset amount to shares
@@ -1029,13 +1122,14 @@ impl NeuroWealthVault {
             .persistent()
             .get(&DataKey::Shares(user.clone()))
             .unwrap_or(0_i128);
-        assert!(user_shares > 0, "vault: insufficient shares");
+        Self::require(&env, user_shares > 0, VaultError::InsufficientShares);
 
         let total_shares = Self::get_total_shares_internal(&env);
         let total_assets = Self::get_total_assets_internal(&env);
-        assert!(
+        Self::require(
+            &env,
             total_shares > 0 && total_assets > 0,
-            "vault: no assets to withdraw"
+            VaultError::NoAssetsToWithdraw,
         );
 
         // We use actual_to_return to determine how many shares to burn.
@@ -1043,10 +1137,15 @@ impl NeuroWealthVault {
         // withdrawal and keep their remaining shares.
         // Use ceiling division to prevent dust attacks (ensure at least 1 share burned when assets > 0).
         let shares_to_burn = Self::convert_to_shares_internal_ceil(&env, actual_to_return);
-        assert!(shares_to_burn > 0, "vault: shares to burn must be positive");
-        assert!(
+        Self::require(
+            &env,
+            shares_to_burn > 0,
+            VaultError::SharesToBurnMustBePositive,
+        );
+        Self::require(
+            &env,
             user_shares >= shares_to_burn,
-            "vault: insufficient shares for requested amount"
+            VaultError::InsufficientSharesForRequestedAmount,
         );
 
         // Calculate actual assets to return based on burned shares.
@@ -1176,13 +1275,14 @@ impl NeuroWealthVault {
             .persistent()
             .get(&DataKey::Shares(user.clone()))
             .unwrap_or(0_i128);
-        assert!(user_shares > 0, "vault: no shares to withdraw");
+        Self::require(&env, user_shares > 0, VaultError::NoSharesToWithdraw);
 
         let total_shares = Self::get_total_shares_internal(&env);
         let total_assets = Self::get_total_assets_internal(&env);
-        assert!(
+        Self::require(
+            &env,
             total_shares > 0 && total_assets > 0,
-            "vault: no assets to withdraw"
+            VaultError::NoAssetsToWithdraw,
         );
 
         // Calculate assets user is entitled to based on their shares
@@ -1209,15 +1309,15 @@ impl NeuroWealthVault {
                 // The user receives what's available and keeps their remaining shares.
                 if available_usdc < entitled_amount {
                     usdc_to_return = available_usdc;
-                    assert!(usdc_to_return > 0, "vault: no liquidity available");
+                    Self::require(&env, usdc_to_return > 0, VaultError::NoLiquidityAvailable);
                     // Use ceiling division to prevent dust attacks (ensure at least 1 share burned).
                     shares_to_burn = Self::convert_to_shares_internal_ceil(&env, usdc_to_return);
                 }
             }
         }
 
-        assert!(usdc_to_return > 0, "vault: no assets to return");
-        assert!(shares_to_burn > 0, "vault: no shares to burn");
+        Self::require(&env, usdc_to_return > 0, VaultError::NoAssetsToReturn);
+        Self::require(&env, shares_to_burn > 0, VaultError::NoSharesToBurn);
 
         // Update user shares
         env.storage().persistent().set(
@@ -1340,13 +1440,13 @@ impl NeuroWealthVault {
         Self::require_is_agent(&env);
 
         if min_out < 0 {
-            panic!("vault: min_out must be non-negative");
+            panic_with_error!(&env, VaultError::MinOutMustBeNonNegative);
         }
 
         // Validate protocol against allowlist
         let supported_protocols = vec![&env, symbol_short!("blend"), symbol_short!("none")];
         if !supported_protocols.contains(protocol.clone()) {
-            panic!("vault: unsupported protocol");
+            panic_with_error!(&env, VaultError::UnsupportedProtocol);
         }
 
         let current_protocol: Symbol = env
@@ -1387,7 +1487,7 @@ impl NeuroWealthVault {
 
         if protocol == symbol_short!("blend") {
             if !env.storage().instance().has(&DataKey::BlendPool) {
-                panic!("vault: blend pool not configured");
+                panic_with_error!(&env, VaultError::BlendPoolNotConfigured);
             }
 
             let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
@@ -1500,7 +1600,7 @@ impl NeuroWealthVault {
         Self::require_initialized(&env);
         owner.require_auth();
         let stored_owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
-        assert_eq!(owner, stored_owner, "vault: only owner can pause");
+        Self::require(&env, owner == stored_owner, VaultError::OnlyOwnerCanPause);
 
         env.storage().instance().set(&DataKey::Paused, &true);
 
@@ -1532,14 +1632,14 @@ impl NeuroWealthVault {
         Self::require_initialized(&env);
         owner.require_auth();
         let stored_owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
-        assert_eq!(owner, stored_owner, "vault: only owner can unpause");
+        Self::require(&env, owner == stored_owner, VaultError::OnlyOwnerCanUnpause);
 
         let paused: bool = env
             .storage()
             .instance()
             .get(&DataKey::Paused)
             .unwrap_or(false);
-        assert!(paused, "vault: not paused");
+        Self::require(&env, paused, VaultError::NotPaused);
 
         env.storage().instance().set(&DataKey::Paused, &false);
 
@@ -1573,7 +1673,11 @@ impl NeuroWealthVault {
         Self::require_initialized(&env);
         owner.require_auth();
         let stored_owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
-        assert_eq!(owner, stored_owner, "vault: only owner can emergency pause");
+        Self::require(
+            &env,
+            owner == stored_owner,
+            VaultError::OnlyOwnerCanEmergencyPause,
+        );
 
         env.storage().instance().set(&DataKey::Paused, &true);
 
@@ -1612,7 +1716,7 @@ impl NeuroWealthVault {
         Self::require_is_owner(&env);
 
         if cap < 0 {
-            panic!("vault: tvl cap cannot be negative");
+            panic_with_error!(&env, VaultError::TvlCapCannotBeNegative);
         }
 
         let old_tvl_cap: i128 = env
@@ -1658,7 +1762,7 @@ impl NeuroWealthVault {
         Self::require_is_owner(&env);
 
         if cap < 0 {
-            panic!("vault: user deposit cap cannot be negative");
+            panic_with_error!(&env, VaultError::UserDepositCapCannotBeNegative);
         }
 
         let old_user_cap: i128 = env
@@ -1707,13 +1811,13 @@ impl NeuroWealthVault {
         Self::require_is_owner(&env);
 
         if user_deposit_cap < 0 {
-            panic!("vault: user deposit cap cannot be negative");
+            panic_with_error!(&env, VaultError::UserDepositCapCannotBeNegative);
         }
         if tvl_cap < 0 {
-            panic!("vault: tvl cap cannot be negative");
+            panic_with_error!(&env, VaultError::TvlCapCannotBeNegative);
         }
         if tvl_cap > 0 && user_deposit_cap > 0 && tvl_cap < user_deposit_cap {
-            panic!("vault: tvl cap must be >= user deposit cap");
+            panic_with_error!(&env, VaultError::TvlCapBelowUserDepositCap);
         }
 
         let old_user_cap: i128 = env
@@ -1846,8 +1950,12 @@ impl NeuroWealthVault {
         Self::require_is_owner(&env);
 
         // Validate limits
-        assert!(min >= DEFAULT_MIN_DEPOSIT, "vault: minimum deposit too low");
-        assert!(max >= min, "vault: maximum deposit below minimum");
+        Self::require(
+            &env,
+            min >= DEFAULT_MIN_DEPOSIT,
+            VaultError::MinimumDepositTooLow,
+        );
+        Self::require(&env, max >= min, VaultError::MaximumDepositBelowMinimum);
 
         let old_min = env
             .storage()
@@ -1991,7 +2099,11 @@ impl NeuroWealthVault {
         Self::require_initialized(&env);
         owner.require_auth();
         let stored_owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
-        assert_eq!(owner, stored_owner, "vault: only owner can set blend pool");
+        Self::require(
+            &env,
+            owner == stored_owner,
+            VaultError::OnlyOwnerCanSetBlendPool,
+        );
 
         // Validate pool interface by probing the `balance` function (Issue #148).
         // If the address is not a valid Blend pool contract the invocation will
@@ -2096,7 +2208,11 @@ impl NeuroWealthVault {
             .get(&DataKey::PendingOwner)
             .expect("vault: no pending owner");
 
-        assert_eq!(new_owner, pending, "vault: caller is not the pending owner");
+        Self::require(
+            &env,
+            new_owner == pending,
+            VaultError::CallerIsNotPendingOwner,
+        );
 
         let old_owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
 
@@ -2225,16 +2341,21 @@ impl NeuroWealthVault {
     ) {
         Self::require_initialized(&env);
         let stored_agent: Address = env.storage().instance().get(&DataKey::Agent).unwrap();
-        assert_eq!(
-            agent, stored_agent,
-            "vault: only agent can update total assets"
+        Self::require(
+            &env,
+            agent == stored_agent,
+            VaultError::OnlyAgentCanUpdateTotalAssets,
         );
         agent.require_auth();
 
         let old_total = Self::get_total_assets_internal(&env);
 
         if new_total < old_total {
-            assert!(allow_decrease, "vault: total assets decrease not allowed");
+            Self::require(
+                &env,
+                allow_decrease,
+                VaultError::TotalAssetsDecreaseNotAllowed,
+            );
 
             // Owner must co-sign any loss report. A single compromised key
             // cannot unilaterally reduce user asset values.
@@ -2250,9 +2371,10 @@ impl NeuroWealthVault {
                 .checked_sub(new_total)
                 .expect("vault: decrease underflow");
 
-            assert!(
+            Self::require(
+                &env,
                 actual_decrease <= max_decrease,
-                "vault: decrease exceeds maximum allowed bps"
+                VaultError::DecreaseExceedsMaximumAllowedBps,
             );
         }
 
@@ -2286,9 +2408,10 @@ impl NeuroWealthVault {
                 .expect("vault: total available overflow");
         }
 
-        assert!(
+        Self::require(
+            &env,
             total_available >= new_total,
-            "vault: insufficient balance for reported assets"
+            VaultError::InsufficientBalanceForReportedAssets,
         );
 
         env.storage()
@@ -2341,7 +2464,7 @@ impl NeuroWealthVault {
         owner.require_auth();
 
         let stored_owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
-        assert!(owner == stored_owner, "vault: caller is not the owner");
+        Self::require(&env, owner == stored_owner, VaultError::CallerIsNotOwner);
 
         let old_version: u32 = env.storage().instance().get(&DataKey::Version).unwrap_or(1);
 
@@ -2798,7 +2921,7 @@ impl NeuroWealthVault {
             .instance()
             .get(&DataKey::Paused)
             .unwrap_or(false);
-        assert!(!paused, "vault: paused");
+        Self::require(env, !paused, VaultError::Paused);
     }
 
     /// Validates that the vault has been initialized.
@@ -2807,11 +2930,12 @@ impl NeuroWealthVault {
     /// - If the vault has not been initialized yet
     #[inline]
     fn require_initialized(env: &Env) {
-        assert!(
+        Self::require(
+            env,
             env.storage().instance().has(&DataKey::Agent)
                 && env.storage().instance().has(&DataKey::UsdcToken)
                 && env.storage().instance().has(&DataKey::Owner),
-            "vault: not initialized."
+            VaultError::NotInitialized,
         );
     }
 
@@ -2842,8 +2966,8 @@ impl NeuroWealthVault {
     /// # Panics
     /// - If amount is <= 0
     #[inline]
-    fn require_positive_amount(amount: i128) {
-        assert!(amount > 0, "vault: amount must be positive");
+    fn require_positive_amount(env: &Env, amount: i128) {
+        Self::require(env, amount > 0, VaultError::AmountMustBePositive);
     }
 
     /// Validates that a deposit meets the minimum requirement.
@@ -2855,7 +2979,7 @@ impl NeuroWealthVault {
     #[inline]
     fn require_minimum_deposit(env: &Env, amount: i128) {
         let min_deposit: i128 = Self::get_min_deposit_internal(env);
-        assert!(amount >= min_deposit, "vault: below minimum deposit");
+        Self::require(env, amount >= min_deposit, VaultError::BelowMinimumDeposit);
     }
 
     #[inline]
@@ -2875,7 +2999,11 @@ impl NeuroWealthVault {
     #[inline]
     fn require_maximum_deposit(env: &Env, amount: i128) {
         let max_deposit: i128 = Self::get_max_deposit_internal(env);
-        assert!(amount <= max_deposit, "vault: maximum deposit exceeded");
+        Self::require(
+            env,
+            amount <= max_deposit,
+            VaultError::MaximumDepositExceeded,
+        );
     }
 
     #[inline]
@@ -2909,12 +3037,13 @@ impl NeuroWealthVault {
                 .get(&DataKey::Shares(user.clone()))
                 .unwrap_or(0_i128);
             let current_assets = Self::convert_to_assets_internal(env, user_shares);
-            assert!(
+            Self::require(
+                env,
                 current_assets
                     .checked_add(amount)
                     .expect("vault: cap check overflow")
                     <= cap,
-                "vault: exceeds user deposit cap"
+                VaultError::ExceedsUserDepositCap,
             );
         }
     }
@@ -2936,12 +3065,13 @@ impl NeuroWealthVault {
                 .instance()
                 .get(&DataKey::TotalDeposits)
                 .unwrap_or(0_i128);
-            assert!(
+            Self::require(
+                env,
                 total
                     .checked_add(amount)
                     .expect("vault: cap check overflow")
                     <= cap,
-                "vault: exceeds TVL cap"
+                VaultError::ExceedsTvlCap,
             );
         }
     }
@@ -3089,12 +3219,10 @@ impl NeuroWealthVault {
     }
 
     /// Panics when `min_out > 0` and fewer assets were received than required.
-    fn require_min_out(actual: i128, min_out: i128, leg: &str) {
+    fn require_min_out(env: &Env, actual: i128, min_out: i128, leg: &str) {
         if min_out > 0 && actual < min_out {
-            panic!(
-                "vault: {} received {} below min_out {}",
-                leg, actual, min_out
-            );
+            let _ = leg;
+            panic_with_error!(env, VaultError::MinOutNotMet);
         }
     }
 
@@ -3203,7 +3331,7 @@ impl NeuroWealthVault {
         let supplied =
             BlendPoolClient::supply(env, &pool_address, &usdc_token, amount, &vault_address);
 
-        Self::require_min_out(supplied, min_out, "blend supply");
+        Self::require_min_out(env, supplied, min_out, "blend supply");
 
         if supplied > 0 {
             Self::set_current_protocol(env, symbol_short!("blend"));
@@ -3270,7 +3398,7 @@ impl NeuroWealthVault {
             &vault_address,
         );
 
-        Self::require_min_out(withdrawn, min_out, "blend withdraw");
+        Self::require_min_out(env, withdrawn, min_out, "blend withdraw");
 
         if withdrawn > 0 && amount == 0 {
             let remaining =

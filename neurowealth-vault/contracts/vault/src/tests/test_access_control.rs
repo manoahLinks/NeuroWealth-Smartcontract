@@ -147,7 +147,7 @@ fn test_owner_can_set_blend_pool() {
 // ============================================================================
 
 #[test]
-#[should_panic(expected = "vault: only owner can pause")]
+#[should_panic(expected = "Error(Contract, #19)")]
 fn test_non_owner_cannot_pause() {
     let env = Env::default();
     env.mock_all_auths();
@@ -160,7 +160,7 @@ fn test_non_owner_cannot_pause() {
 }
 
 #[test]
-#[should_panic(expected = "vault: only owner can unpause")]
+#[should_panic(expected = "Error(Contract, #20)")]
 fn test_non_owner_cannot_unpause() {
     let env = Env::default();
     env.mock_all_auths();
@@ -176,7 +176,7 @@ fn test_non_owner_cannot_unpause() {
 }
 
 #[test]
-#[should_panic(expected = "vault: only owner can emergency pause")]
+#[should_panic(expected = "Error(Contract, #22)")]
 fn test_non_owner_cannot_emergency_pause() {
     let env = Env::default();
     env.mock_all_auths();
@@ -202,7 +202,7 @@ fn test_non_owner_cannot_emergency_pause() {
 }
 
 #[test]
-#[should_panic(expected = "vault: only owner can set blend pool")]
+#[should_panic(expected = "Error(Contract, #28)")]
 fn test_non_owner_cannot_set_blend_pool() {
     let env = Env::default();
     env.mock_all_auths();
@@ -217,7 +217,7 @@ fn test_non_owner_cannot_set_blend_pool() {
 }
 
 #[test]
-#[should_panic(expected = "vault: caller is not the owner")]
+#[should_panic(expected = "Error(Contract, #34)")]
 fn test_non_owner_cannot_upgrade() {
     let env = Env::default();
     env.mock_all_auths();
@@ -274,7 +274,7 @@ fn test_agent_can_update_total_assets() {
 // ============================================================================
 
 #[test]
-#[should_panic(expected = "vault: only agent can update total assets")]
+#[should_panic(expected = "Error(Contract, #30)")]
 fn test_non_agent_cannot_update_total_assets() {
     let env = Env::default();
     env.mock_all_auths();
@@ -378,7 +378,7 @@ fn test_new_owner_can_use_owner_functions_after_transfer() {
 }
 
 #[test]
-#[should_panic(expected = "vault: only owner can pause")]
+#[should_panic(expected = "Error(Contract, #19)")]
 fn test_old_owner_cannot_use_owner_functions_after_transfer() {
     let env = Env::default();
     env.mock_all_auths();
@@ -418,7 +418,7 @@ fn test_transfer_ownership_can_be_overwritten() {
 }
 
 #[test]
-#[should_panic(expected = "vault: caller is not the pending owner")]
+#[should_panic(expected = "Error(Contract, #29)")]
 fn test_wrong_address_cannot_accept_ownership() {
     let env = Env::default();
     env.mock_all_auths();
@@ -503,7 +503,7 @@ fn test_accept_after_cancel_panics() {
 // ============================================================================
 
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_deposit_blocked_while_paused() {
     let env = Env::default();
     env.mock_all_auths();
@@ -521,7 +521,7 @@ fn test_deposit_blocked_while_paused() {
 }
 
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_withdraw_blocked_while_paused() {
     let env = Env::default();
     env.mock_all_auths();
@@ -538,7 +538,7 @@ fn test_withdraw_blocked_while_paused() {
 }
 
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_withdraw_all_blocked_while_paused() {
     let env = Env::default();
     env.mock_all_auths();
@@ -555,7 +555,7 @@ fn test_withdraw_all_blocked_while_paused() {
 }
 
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_rebalance_blocked_while_paused() {
     let env = Env::default();
     env.mock_all_auths();
@@ -572,7 +572,7 @@ fn test_rebalance_blocked_while_paused() {
 // ============================================================================
 
 #[test]
-#[should_panic(expected = "vault: only owner can pause")]
+#[should_panic(expected = "Error(Contract, #19)")]
 fn test_agent_cannot_pause() {
     let env = Env::default();
     env.mock_all_auths();
@@ -585,7 +585,7 @@ fn test_agent_cannot_pause() {
 }
 
 #[test]
-#[should_panic(expected = "vault: only owner can unpause")]
+#[should_panic(expected = "Error(Contract, #20)")]
 fn test_agent_cannot_unpause() {
     let env = Env::default();
     env.mock_all_auths();
@@ -601,7 +601,7 @@ fn test_agent_cannot_unpause() {
 }
 
 #[test]
-#[should_panic(expected = "vault: only owner can emergency pause")]
+#[should_panic(expected = "Error(Contract, #22)")]
 fn test_agent_cannot_emergency_pause() {
     let env = Env::default();
     env.mock_all_auths();
@@ -614,7 +614,7 @@ fn test_agent_cannot_emergency_pause() {
 }
 
 #[test]
-#[should_panic(expected = "vault: only owner can set blend pool")]
+#[should_panic(expected = "Error(Contract, #28)")]
 fn test_agent_cannot_set_blend_pool() {
     let env = Env::default();
     env.mock_all_auths();
@@ -628,7 +628,7 @@ fn test_agent_cannot_set_blend_pool() {
 }
 
 #[test]
-#[should_panic(expected = "vault: caller is not the owner")]
+#[should_panic(expected = "Error(Contract, #34)")]
 fn test_agent_cannot_upgrade() {
     let env = Env::default();
     env.mock_all_auths();
@@ -648,7 +648,7 @@ fn test_agent_cannot_upgrade() {
 /// Verifies that the owner cannot impersonate the agent in update_total_assets,
 /// which performs an explicit assert_eq!(agent, stored_agent) guard.
 #[test]
-#[should_panic(expected = "vault: only agent can update total assets")]
+#[should_panic(expected = "Error(Contract, #30)")]
 fn test_owner_cannot_update_total_assets() {
     let env = Env::default();
     env.mock_all_auths();
@@ -665,7 +665,7 @@ fn test_owner_cannot_update_total_assets() {
 
 /// Verifies that a completely unrelated address cannot impersonate the agent.
 #[test]
-#[should_panic(expected = "vault: only agent can update total assets")]
+#[should_panic(expected = "Error(Contract, #30)")]
 fn test_stranger_cannot_update_total_assets() {
     let env = Env::default();
     env.mock_all_auths();
@@ -683,7 +683,7 @@ fn test_stranger_cannot_update_total_assets() {
 /// Verifies that the agent cannot pause the vault (owner-only via explicit address check).
 /// Complements existing test_agent_cannot_pause with a clear issue-#118 label.
 #[test]
-#[should_panic(expected = "vault: only owner can pause")]
+#[should_panic(expected = "Error(Contract, #19)")]
 fn test_agent_cannot_pause_owner_role_is_exclusive() {
     let env = Env::default();
     env.mock_all_auths();
