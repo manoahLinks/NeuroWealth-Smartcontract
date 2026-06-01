@@ -180,7 +180,8 @@ fn test_event_schema_ownership_transfer_events() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, owner, _agent) = setup_vault(&env);
+    // setup_vault returns (contract_id, agent, owner)
+    let (contract_id, _agent, owner) = setup_vault(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     let new_owner = Address::generate(&env);
@@ -290,11 +291,11 @@ fn test_event_schema_emergency_events() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let (contract_id, _agent, owner, _usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     // Test emergency pause event
-    client.emergency_pause(&agent);
+    client.emergency_pause(&owner);
     let emerg_events = find_events_by_topic(env.events().all(), &env, symbol_short!("emerg"));
     assert_eq!(
         emerg_events.len(),
@@ -307,7 +308,7 @@ fn test_event_schema_emergency_events() {
         .expect("Should be a valid EmergencyPausedEvent");
 
     // Verify payload structure
-    assert_eq!(emerg_event.owner, agent);
+    assert_eq!(emerg_event.owner, owner);
 }
 
 /// Test that Blend protocol events have correct topics and payload structure
@@ -316,11 +317,11 @@ fn test_event_schema_blend_events() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, _owner, usdc_token, blend_pool) =
+    let (contract_id, _agent, owner, usdc_token, blend_pool) =
         setup_vault_with_token_and_blend(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
-    client.set_blend_pool(&agent, &blend_pool);
+    client.set_blend_pool(&owner, &blend_pool);
 
     let user = Address::generate(&env);
     mint_and_deposit(&env, &client, &usdc_token, &user, 10_000_000_i128);
@@ -372,7 +373,7 @@ fn test_all_event_topics_schema_compliance() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, owner, usdc_token) = setup_vault_with_token(&env);
+    let (contract_id, _agent, owner, usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     // Generate all possible events
@@ -387,7 +388,7 @@ fn test_all_event_topics_schema_compliance() {
     // Administrative events
     client.pause(&owner);
     client.unpause(&owner);
-    client.emergency_pause(&agent);
+    client.emergency_pause(&owner);
     client.set_deposit_limits(&2_000_000_i128, &20_000_000_000_i128);
 
     // Agent and assets events

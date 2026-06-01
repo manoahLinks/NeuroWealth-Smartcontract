@@ -1,5 +1,6 @@
 mod test_access_control;
 mod test_blend_integration;
+mod test_budget;
 mod test_deposit;
 mod test_event_schema;
 mod test_events;
@@ -12,6 +13,7 @@ mod test_rebalance;
 mod test_rebalance_integration;
 mod test_rounding_math;
 mod test_shares;
+mod test_total_assets_cap;
 mod test_withdraw;
 mod test_yield;
 mod utils;

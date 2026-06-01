@@ -133,10 +133,12 @@ fn test_owner_can_set_blend_pool() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, _agent, owner, _usdc_token) = setup_vault_with_token(&env);
+    // set_blend_pool calls BlendPoolClient::get_balance() internally,
+    // so blend_pool must be a deployed contract, not a plain address.
+    let (contract_id, _agent, owner, _usdc_token, blend_pool) =
+        setup_vault_with_token_and_blend(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
-    let blend_pool = Address::generate(&env);
     client.set_blend_pool(&owner, &blend_pool);
 
     assert_eq!(client.get_blend_pool(), Some(blend_pool));

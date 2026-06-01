@@ -350,4 +350,58 @@ All read functions return the requested data or 0/default if not set.
 1. Batch reads when possible
 2. Use instance storage for frequently accessed globals
 3. Use persistent storage for user-specific data
+
+## Ledger Resource Baselines (Issue #203)
+
+Measured in the Soroban simulator against `soroban-env-host 21.2.1` with the
+MockBlendPool and TestToken test helpers.  Upper bounds used as soft regression
+gates in `tests/test_budget.rs`.
+
+| Operation | CPU instructions | Memory bytes |
+|---|---|---|
+| `deposit` | < 5 000 000 | < 300 000 |
+| `withdraw` (no Blend) | < 5 000 000 | < 300 000 |
+| `withdraw` (Blend pull) | < 15 000 000 | < 600 000 |
+| `rebalance → blend` | < 15 000 000 | < 600 000 |
+| `rebalance → none` | < 15 000 000 | < 600 000 |
+
+Cross-contract operations (Blend supply/withdraw) cost roughly 3× a simple
+deposit because each `invoke_contract` carries its own CPU and memory overhead.
+
+## TotalDeposits vs TotalAssets Relationship (Issue #183)
+
+Two separate values track vault accounting:
+
+| Field | Updated by | Includes yield? | Used for |
+|---|---|---|---|
+| `TotalDeposits` | `deposit`, `withdraw` | No | Principal bookkeeping, reporting |
+| `TotalAssets` | `deposit`, `withdraw`, `update_total_assets` | Yes | Share pricing, TVL cap guard |
+
+**TVL cap check uses `TotalAssets`**: after yield accrual `TotalAssets` can
+exceed `TotalDeposits`.  The cap must compare against `TotalAssets` to prevent
+additional deposits from pushing total managed value past the intended limit.
+Checking `TotalDeposits` instead would allow over-subscription once yield has
+grown the vault past the cap.
+
+Share price formula: `share_price = TotalAssets / TotalShares`.  All economic
+quantities (user balance, redemption amount) derive from `TotalAssets`, not
+`TotalDeposits`.
+
+## expected_apy Validation (Issue #185)
+
+`rebalance(protocol, expected_apy)` validates `0 ≤ expected_apy ≤ 10 000`
+(basis points, where 10 000 = 100 %).  Values outside this range are rejected
+with `vault: expected_apy out of range (0-10000 bps)`.
+
+The field is **informational for indexers** — it is emitted in `RebalanceEvent`
+but does not influence on-chain fund movement.  Off-chain consumers (AI agent,
+dashboards) use it to audit that the expected yield reported at rebalance time
+is plausible.
+
+## Upgrade Safety (Issue #189)
+
+`upgrade()` is gated by `require_not_paused()`.  During an incident the operator
+pauses the vault to freeze user operations; the upgrade guard ensures that a
+compromised or mistaken WASM upgrade cannot be pushed while the vault is in a
+degraded state.  To upgrade: unpause → upgrade → re-pause if needed.
 4. Minimize state changes in single transaction

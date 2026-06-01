@@ -464,3 +464,45 @@ fn test_rebalance_blend_to_none_withdraws_all_and_updates_state_and_events() {
         "rebalance event APY should match provided value"
     );
 }
+
+// ============================================================================
+// ISSUE #185: expected_apy validation (0–10 000 bps)
+// ============================================================================
+
+#[test]
+fn test_rebalance_apy_boundary_values_accepted() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    // Boundary values must be accepted
+    client.rebalance(&symbol_short!("none"), &0_i128); // 0 bps
+    client.rebalance(&symbol_short!("none"), &10_000_i128); // 100%
+    client.rebalance(&symbol_short!("none"), &5_000_i128); // 50%
+}
+
+#[test]
+#[should_panic(expected = "vault: expected_apy out of range (0-10000 bps)")]
+fn test_rebalance_negative_apy_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    client.rebalance(&symbol_short!("none"), &-1_i128);
+}
+
+#[test]
+#[should_panic(expected = "vault: expected_apy out of range (0-10000 bps)")]
+fn test_rebalance_apy_above_max_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    client.rebalance(&symbol_short!("none"), &10_001_i128);
+}

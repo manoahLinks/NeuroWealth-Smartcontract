@@ -211,10 +211,10 @@ fn test_emergency_pause_emits_emergency_event_with_correct_payload() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, _owner, _usdc_token) = setup_vault_with_token(&env);
+    let (contract_id, _agent, owner, _usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
-    client.emergency_pause(&agent);
+    client.emergency_pause(&owner);
 
     let emergency_events = find_events_by_topic(env.events().all(), &env, symbol_short!("emerg"));
     assert!(
@@ -226,7 +226,7 @@ fn test_emergency_pause_emits_emergency_event_with_correct_payload() {
     let event =
         EmergencyPausedEvent::try_from_val(&env, data).expect("Should be an EmergencyPausedEvent");
     assert_eq!(
-        event.owner, agent,
+        event.owner, owner,
         "Event owner should match emergency pauser"
     );
 }
@@ -366,11 +366,11 @@ fn test_rebalance_with_blend_emits_correct_event() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, _owner, usdc_token, blend_pool) =
+    let (contract_id, _agent, owner, usdc_token, blend_pool) =
         setup_vault_with_token_and_blend(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
-    client.set_blend_pool(&agent, &blend_pool);
+    client.set_blend_pool(&owner, &blend_pool);
 
     let user = Address::generate(&env);
     mint_and_deposit(&env, &client, &usdc_token, &user, 10_000_000_i128);
@@ -399,14 +399,14 @@ fn test_all_events_have_correct_topics() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, owner, _usdc_token) = setup_vault_with_token(&env);
+    let (contract_id, _agent, owner, _usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
     client.set_deposit_limits(&1_000_000_i128, &10_000_000_000_i128);
     client.rebalance(&symbol_short!("none"), &500_i128);
     client.pause(&owner);
     client.unpause(&owner);
-    client.emergency_pause(&agent);
+    client.emergency_pause(&owner);
 
     let init_events = find_events_by_topic(env.events().all(), &env, symbol_short!("init"));
     let limits_events = find_events_by_topic(env.events().all(), &env, symbol_short!("l_upd"));
