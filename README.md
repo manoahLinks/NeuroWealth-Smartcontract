@@ -375,15 +375,22 @@ The deployment script will:
 - Save all contract addresses to `scripts/devnet-contracts.env`
 
 Testnet
-bash# Deploy everything to Stellar testnet
+```bash
+# Deploy everything to Stellar testnet
 ./scripts/deploy.sh --network testnet
+```
+
 Mainnet
-bash# Ensure all tests pass first
+⚠️ **CRITICAL:** Before deploying to Stellar mainnet, you must complete and sign off on all items in the [Mainnet Deployment Checklist](docs/MAINNET_CHECKLIST.md) (including separate keys setup, TVL limits, Blend pool verification, pause drills, and multisig governance plans).
+
+```bash
+# Ensure all tests pass first
 cargo test
 npm test
 
 # Deploy to mainnet
 ./scripts/deploy.sh --network mainnet
+```
 Infrastructure (Recommended)
 
 Agent: Railway, Render, or a VPS (needs to run 24/7)
