@@ -107,6 +107,7 @@
 //! vault_client.withdraw(&user, &amount);
 //! ```
 
+#![warn(missing_docs)]
 #![no_std]
 #![allow(deprecated)]
 
@@ -121,6 +122,7 @@ use soroban_sdk::{
 // ERROR TYPES
 // ============================================================================
 
+#[allow(missing_docs)]
 #[contracterror]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum VaultError {
@@ -219,6 +221,7 @@ pub enum VaultError {
 /// This enum defines all keys used for both instance and persistent storage.
 /// Instance storage is used for contract-wide configuration, while persistent
 /// storage is used for per-user data that requires efficient access.
+#[allow(missing_docs)]
 #[contracttype]
 pub enum DataKey {
     /// User's principal USDC balance (key: user Address)
@@ -288,6 +291,7 @@ pub enum DataKey {
 ///
 /// # Topics
 /// - `SymbolShort("deposit")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct DepositEvent {
     /// The user who made the deposit
@@ -305,6 +309,7 @@ pub struct DepositEvent {
 ///
 /// # Topics
 /// - `SymbolShort("withdraw")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct WithdrawEvent {
     /// The user who made the withdrawal
@@ -323,6 +328,7 @@ pub struct WithdrawEvent {
 ///
 /// # Topics
 /// - `SymbolShort("rebalance")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct RebalanceEvent {
     /// The target protocol (supported: "blend", "none")
@@ -344,6 +350,7 @@ pub struct RebalanceEvent {
 ///
 /// # Topics
 /// - `SymbolShort("proto_chg")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct ProtocolChangedEvent {
     pub old_protocol: Symbol,
@@ -354,6 +361,7 @@ pub struct ProtocolChangedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("pause")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct PauseEvent {
     /// True if vault is now paused, false if unpaused
@@ -366,6 +374,7 @@ pub struct PauseEvent {
 ///
 /// # Topics
 /// - `SymbolShort("vault_initialized")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct VaultInitializedEvent {
     pub owner: Address,
@@ -378,6 +387,7 @@ pub struct VaultInitializedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("init_fail")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct InitFailedEvent {
     pub caller: Address,
@@ -388,6 +398,7 @@ pub struct InitFailedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("vault_paused")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct VaultPausedEvent {
     pub owner: Address,
@@ -397,6 +408,7 @@ pub struct VaultPausedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("vault_unpaused")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct VaultUnpausedEvent {
     pub owner: Address,
@@ -406,6 +418,7 @@ pub struct VaultUnpausedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("emergency_paused")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct EmergencyPausedEvent {
     pub owner: Address,
@@ -415,6 +428,7 @@ pub struct EmergencyPausedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("tvl_cap_updated")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct TvlCapUpdatedEvent {
     pub old_cap: i128,
@@ -425,6 +439,7 @@ pub struct TvlCapUpdatedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("user_cap_updated")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct UserDepositCapUpdatedEvent {
     pub old_cap: i128,
@@ -435,6 +450,7 @@ pub struct UserDepositCapUpdatedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("caps_upd")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct CapsUpdatedEvent {
     pub old_user_cap: i128,
@@ -447,6 +463,7 @@ pub struct CapsUpdatedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("limits_updated")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct LimitsUpdatedEvent {
     pub old_min: i128,
@@ -459,6 +476,7 @@ pub struct LimitsUpdatedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("agent_updated")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct AgentUpdatedEvent {
     pub old_agent: Address,
@@ -469,6 +487,7 @@ pub struct AgentUpdatedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("own_init")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct OwnershipTransferInitiatedEvent {
     pub current_owner: Address,
@@ -479,6 +498,7 @@ pub struct OwnershipTransferInitiatedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("own_xfer")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct OwnershipTransferredEvent {
     pub old_owner: Address,
@@ -489,6 +509,7 @@ pub struct OwnershipTransferredEvent {
 ///
 /// # Topics
 /// - `SymbolShort("own_cncl")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct OwnershipTransferCancelledEvent {
     pub owner: Address,
@@ -499,6 +520,7 @@ pub struct OwnershipTransferCancelledEvent {
 ///
 /// # Topics
 /// - `SymbolShort("assets_updated")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct AssetsUpdatedEvent {
     pub old_total: i128,
@@ -509,6 +531,7 @@ pub struct AssetsUpdatedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("upgraded")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct UpgradedEvent {
     /// The contract version before the upgrade
@@ -521,6 +544,7 @@ pub struct UpgradedEvent {
 ///
 /// # Topics
 /// - `SymbolShort("blend_sup")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct BlendSupplyEvent {
     /// The asset address (USDC)
@@ -535,6 +559,7 @@ pub struct BlendSupplyEvent {
 ///
 /// # Topics
 /// - `SymbolShort("blend_wd")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct BlendWithdrawEvent {
     /// The asset address (USDC)
@@ -552,6 +577,7 @@ pub struct BlendWithdrawEvent {
 ///
 /// # Topics
 /// - `SymbolShort("reb_fail")` - Event identifier
+#[allow(missing_docs)]
 #[contracttype]
 pub struct RebalanceFailedEvent {
     /// The protocol the vault was trying to exit
@@ -560,6 +586,7 @@ pub struct RebalanceFailedEvent {
     pub reason: Symbol,
 }
 
+#[allow(missing_docs)]
 #[contracttype]
 pub struct UserInfo {
     pub principal: i128,
@@ -582,6 +609,7 @@ pub struct UserInfo {
 struct BlendPoolClient;
 
 #[derive(Clone)]
+#[allow(missing_docs)]
 #[contracttype]
 struct BlendRequest {
     request_type: u32,
@@ -758,6 +786,7 @@ impl BlendPoolClient {
 /// # Upgradeability
 ///
 /// This contract can be upgraded by the owner while preserving all storage state.
+#[allow(missing_docs)]
 #[contract]
 pub struct NeuroWealthVault;
 
@@ -781,34 +810,32 @@ impl NeuroWealthVault {
     /// the vault is ready to accept deposits.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `agent` - The authorized AI agent address that can call rebalance()
-    /// * `usdc_token` - The USDC token contract address
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `deployer` - The deployer address authorizing the initialization.
+    /// * `owner` - The initial owner address of the vault.
+    /// * `agent` - The authorized AI agent address that can call rebalance().
+    /// * `usdc_token` - The USDC token contract address.
+    /// * `salt` - The salt used during deployment for verification.
     ///
     /// # Returns
-    /// Nothing. This function mutates state but returns nothing.
     ///
-    /// # Panics
-    /// - If the vault has already been initialized (Agent key already exists)
+    /// None.
     ///
     /// # Events
-    /// Emits `VaultInitializedEvent` with:
-    /// - `agent`: The authorized AI agent address
-    /// - `usdc_token`: The USDC token contract address
-    /// - `tvl_cap`: The initial TVL cap
     ///
-    /// # Security
-    /// - This function can only be called once (idempotent initialization prevention)
-    /// - Requires valid signature from the deployer address to prevent front-running
-    /// - The deployer must sign the initialization parameters (owner, agent, usdc_token)
-    /// - After initialization, the deployer should transfer ownership or destroy
-    ///   the deployer key to prevent re-initialization
+    /// Emits:
+    /// - `VaultInitializedEvent`
     ///
-    /// # Signature Verification
-    /// The deployer must authorize this call with their signature. The signature
-    /// is verified by checking that the caller is the deployer address stored in
-    /// the contract's deployer storage. This prevents malicious actors from
-    /// front-running the initialization with their own parameters.
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the vault has already been initialized (Agent key already exists).
+    /// - If the caller is not the expected deployer.
+    /// - If deployer authorization fails.
     pub fn initialize(
         env: Env,
         deployer: Address,
@@ -884,51 +911,33 @@ impl NeuroWealthVault {
     /// An event is emitted for the AI agent to detect and initiate yield deployment.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `user` - The user address making the deposit (must authorize)
-    /// * `amount` - Amount of USDC to deposit (7 decimal places)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `user` - The user address making the deposit (must authorize).
+    /// * `amount` - Amount of USDC to deposit (7 decimal places).
     ///
     /// # Returns
-    /// Nothing. This function records the deposit and returns nothing.
     ///
-    /// # Panics
-    /// - If the vault is paused
-    /// - If amount is not positive
-    /// - If amount is less than 1 USDC (minimum deposit)
-    /// - If amount would exceed the user's deposit cap
-    /// - If amount would exceed the TVL cap
-    /// - If the USDC transfer fails
+    /// None.
     ///
     /// # Events
-    /// Emits `DepositEvent` with:
-    /// - `user`: The depositing user's address
-    /// - `amount`: The amount deposited
     ///
-    /// # Security
-    /// - `user.require_auth()` ensures only the user can deposit to their own account
-    /// - Checks are performed before state updates (checks-effects-interactions pattern)
-    /// - Balance is updated after successful token transfer
+    /// Emits:
+    /// - `DepositEvent`
     ///
-    /// # First-Depositor / Donation Inflation Attack
-    /// ERC-4626-style vaults can be vulnerable to a share-price inflation attack
-    /// when the share supply is tiny: an attacker becomes the first depositor for
-    /// a negligible amount, "donates" a large amount to inflate the price per
-    /// share, and a subsequent victim deposit rounds down to zero shares —
-    /// letting the attacker redeem the victim's funds.
+    /// # Errors
     ///
-    /// This vault mitigates the attack without virtual shares by combining three
-    /// properties (see also [`Self::convert_to_shares_internal`]):
-    /// 1. **Storage-based asset accounting.** Share pricing uses the stored
-    ///    `TotalAssets`, which only changes via deposit, withdraw, and the
-    ///    agent's balance-verified `update_total_assets`. A direct token transfer
-    ///    ("donation") to the vault address does NOT change `TotalAssets`, so it
-    ///    cannot inflate the share price. This neutralizes the donation step.
-    /// 2. **Minimum deposit floor.** `MinDeposit` (default 1_000_000 base units)
-    ///    prevents a 1-unit first deposit, so the share supply is never small
-    ///    enough for rounding to be weaponized.
-    /// 3. **Non-zero mint guard.** A deposit that would mint zero shares reverts
-    ///    (`vault: shares to mint must be positive`), so a victim can never
-    ///    silently receive 0 shares for a non-zero deposit.
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the vault is paused.
+    /// - If amount is not positive.
+    /// - If amount is less than the minimum deposit.
+    /// - If amount would exceed the user's deposit cap.
+    /// - If amount would exceed the TVL cap.
+    /// - If the USDC transfer fails.
+    /// - If shares to mint rounds down to zero.
     pub fn deposit(env: Env, user: Address, amount: i128) {
         Self::require_initialized(&env);
         user.require_auth();
@@ -1040,29 +1049,31 @@ impl NeuroWealthVault {
     /// first to ensure funds are available for withdrawal.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `user` - The user address withdrawing funds (must authorize)
-    /// * `amount` - Amount of USDC to withdraw (7 decimal places)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `user` - The user address withdrawing funds (must authorize).
+    /// * `amount` - Amount of USDC to withdraw (7 decimal places).
     ///
     /// # Returns
-    /// Nothing. This function processes the withdrawal and returns nothing.
     ///
-    /// # Panics
-    /// - If the vault is paused
-    /// - If amount is not positive
-    /// - If user has insufficient balance
-    /// - If the USDC transfer fails
+    /// None.
     ///
     /// # Events
-    /// Emits `WithdrawEvent` with:
-    /// - `user`: The withdrawing user's address
-    /// - `amount`: The amount withdrawn
     ///
-    /// # Security
-    /// - `user.require_auth()` ensures users can only withdraw their own funds
-    /// - Balance check is performed before any state updates
-    /// - Uses checks-effects-interactions pattern: balance updated before transfer
-    /// - Funds are pulled from Blend if necessary before user transfer
+    /// Emits:
+    /// - `WithdrawEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the vault is paused.
+    /// - If amount is not positive.
+    /// - If user has insufficient balance or shares.
+    /// - If the vault has insufficient liquidity and cannot retrieve enough from Blend.
+    /// - If the USDC transfer fails.
     pub fn withdraw(env: Env, user: Address, amount: i128) {
         Self::require_initialized(&env);
         user.require_auth();
@@ -1232,28 +1243,29 @@ impl NeuroWealthVault {
     /// first to ensure funds are available for withdrawal.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `user` - The user address withdrawing funds (must authorize)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `user` - The user address withdrawing funds (must authorize).
     ///
     /// # Returns
-    /// The amount of USDC withdrawn
     ///
-    /// # Panics
-    /// - If the vault is paused
-    /// - If user has no shares to withdraw
-    /// - If the USDC transfer fails
+    /// Returns the amount of USDC withdrawn.
     ///
     /// # Events
-    /// Emits `WithdrawEvent` with:
-    /// - `user`: The withdrawing user's address
-    /// - `amount`: The amount withdrawn
-    /// - `shares`: The number of shares burned
     ///
-    /// # Security
-    /// - `user.require_auth()` ensures users can only withdraw their own funds
-    /// - Burns ALL user shares, preventing rounding issues
-    /// - Uses checks-effects-interactions pattern
-    /// - Funds are pulled from Blend if necessary before user transfer
+    /// Emits:
+    /// - `WithdrawEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the vault is paused.
+    /// - If user has no shares to withdraw.
+    /// - If the vault has no assets.
+    /// - If the USDC transfer fails.
     pub fn withdraw_all(env: Env, user: Address) -> i128 {
         Self::require_initialized(&env);
         user.require_auth();
@@ -1399,41 +1411,39 @@ impl NeuroWealthVault {
     /// this to move funds between different yield-generating protocols based
     /// on market conditions and strategy performance.
     ///
-    /// This function performs on-chain fund movement:
-    /// 1. Withdraws from current protocol if switching
-    /// 2. Supplies to the selected protocol (Blend)
-    /// 3. Updates storage state
-    /// 4. Emits RebalanceEvent
-    ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `protocol` - The target protocol symbol. Supported values: "blend", "none"
-    /// * `expected_apy` - Expected APY in basis points (e.g., 850 = 8.5%)
-    /// * `min_out` - Minimum assets that must be received on each supply/withdraw leg;
-    ///   pass `0` to disable slippage protection (breaking change vs. earlier two-arg API)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `protocol` - The target protocol to move funds to ("blend" or "none").
+    /// * `expected_apy` - Expected APY in basis points (e.g., 850 = 8.5%).
+    /// * `min_out` - Minimum assets expected to remain (slippage protection).
     ///
     /// # Returns
-    /// Nothing. This function triggers rebalancing and returns nothing.
     ///
-    /// # Panics
-    /// - If the vault is paused
-    /// - If the caller is not the authorized agent
-    /// - If Blend pool is not configured and protocol is "blend"
-    /// - If a leg moves fewer assets than `min_out` when `min_out > 0`
+    /// None.
     ///
     /// # Events
-    /// Emits `RebalanceEvent` (status `"noop"` when no funds move) and
-    /// `ProtocolChangedEvent` when [`DataKey::CurrentProtocol`] updates.
     ///
-    /// # Agent expectations (off-chain)
-    /// - `status == "noop"`: vault already at target allocation; no pool calls needed
-    /// - `ProtocolChangedEvent`: authoritative protocol transition for indexers
+    /// Emits:
+    /// - `RebalanceEvent`
+    /// - `ProtocolChangedEvent`
+    /// - `RebalanceFailedEvent` (if exit fails)
+    /// - `BlendWithdrawEvent`
+    /// - `BlendSupplyEvent`
     ///
-    /// # Security
-    /// - `agent.require_auth()` ensures only the authorized AI agent can rebalance
-    /// - Agent is set during initialization and can be updated by owner
-    /// - Funds are moved on-chain via cross-contract calls
-    /// - Errors in protocol calls are handled gracefully to prevent fund lockup
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If caller is not the authorized agent.
+    /// - If vault is paused.
+    /// - If protocol is unsupported.
+    /// - If slippage protection (min_out) is triggered.
+    /// - If protocol interaction fails.
+    /// - If Blend pool is not configured and protocol is "blend"
+    /// - If a leg moves fewer assets than `min_out` when `min_out > 0`
     pub fn rebalance(env: Env, protocol: Symbol, expected_apy: i128, min_out: i128) {
         Self::require_initialized(&env);
         Self::require_not_paused(&env);
@@ -1579,23 +1589,26 @@ impl NeuroWealthVault {
     /// - Read functions remain operational
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `owner` - The owner address (must authorize this call)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `owner` - The owner address (must authorize this call).
     ///
     /// # Returns
-    /// Nothing. This function pauses the vault and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the owner
+    /// None.
     ///
     /// # Events
-    /// Emits `VaultPausedEvent` with:
-    /// - `owner`: The owner's address that triggered the pause
     ///
-    /// # Security
-    /// - Only the owner can pause the vault (verified via require_auth)
-    /// - There is no automatic unpause - owner must explicitly call unpause()
-    /// - Users' funds remain safe and can be withdrawn after unpause
+    /// Emits:
+    /// - `VaultPausedEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the owner.
     pub fn pause(env: Env, owner: Address) {
         Self::require_initialized(&env);
         owner.require_auth();
@@ -1612,22 +1625,27 @@ impl NeuroWealthVault {
     /// Unpauses the vault, re-enabling deposits and withdrawals.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `owner` - The owner address (must authorize this call)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `owner` - The owner address (must authorize this call).
     ///
     /// # Returns
-    /// Nothing. This function unpauses the vault and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the owner
-    /// - If the vault is not currently paused
+    /// None.
     ///
     /// # Events
-    /// Emits `VaultUnpausedEvent` with:
-    /// - `owner`: The owner's address that triggered the unpause
     ///
-    /// # Security
-    /// - Only the owner can unpause the vault (verified via require_auth)
+    /// Emits:
+    /// - `VaultUnpausedEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the owner.
+    /// - If the vault is not currently paused.
     pub fn unpause(env: Env, owner: Address) {
         Self::require_initialized(&env);
         owner.require_auth();
@@ -1654,21 +1672,26 @@ impl NeuroWealthVault {
     /// situations in event logs. Functionally identical to pause().
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `owner` - The owner address (must authorize this call)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `owner` - The owner address (must authorize this call).
     ///
     /// # Returns
-    /// Nothing. This function emergency pauses the vault and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the owner
+    /// None.
     ///
     /// # Events
-    /// Emits `EmergencyPausedEvent` with:
-    /// - `owner`: The owner's address that triggered the emergency pause
     ///
-    /// # Security
-    /// - Only the owner can emergency pause the vault (verified via require_auth)
+    /// Emits:
+    /// - `EmergencyPausedEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the owner.
     pub fn emergency_pause(env: Env, owner: Address) {
         Self::require_initialized(&env);
         owner.require_auth();
@@ -1696,21 +1719,27 @@ impl NeuroWealthVault {
     /// Setting to 0 removes the cap.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `cap` - New TVL cap in USDC units (7 decimal places)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `cap` - New TVL cap in USDC units (7 decimal places).
     ///
     /// # Returns
-    /// Nothing. This function updates the cap and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the owner
+    /// None.
     ///
     /// # Events
-    /// Emits `TvlCapUpdatedEvent`
     ///
-    /// # Security
-    /// - Only the owner can modify the TVL cap
-    /// - Reducing the cap below current total deposits does not affect existing deposits
+    /// Emits:
+    /// - `TvlCapUpdatedEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the owner.
+    /// - If the cap is negative.
     pub fn set_tvl_cap(env: Env, cap: i128) {
         Self::require_initialized(&env);
         Self::require_is_owner(&env);
@@ -1742,21 +1771,27 @@ impl NeuroWealthVault {
     /// Setting to 0 removes the cap.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `cap` - New per-user deposit cap in USDC units (7 decimal places)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `cap` - New per-user deposit cap in USDC units (7 decimal places).
     ///
     /// # Returns
-    /// Nothing. This function updates the cap and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the owner
+    /// None.
     ///
     /// # Events
-    /// Emits `UserDepositCapUpdatedEvent`
     ///
-    /// # Security
-    /// - Only the owner can modify the user deposit cap
-    /// - Reducing the cap below a user's current balance does not affect them
+    /// Emits:
+    /// - `UserDepositCapUpdatedEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the owner.
+    /// - If the cap is negative.
     pub fn set_user_deposit_cap(env: Env, cap: i128) {
         Self::require_initialized(&env);
         Self::require_is_owner(&env);
@@ -1788,24 +1823,30 @@ impl NeuroWealthVault {
     /// `CapsUpdatedEvent` with all old and new values.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `user_deposit_cap` - New per-user deposit cap in USDC units (7 decimal places)
-    /// * `tvl_cap` - New TVL cap in USDC units (7 decimal places)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `user_deposit_cap` - New per-user deposit cap in USDC units (7 decimal places).
+    /// * `tvl_cap` - New TVL cap in USDC units (7 decimal places).
     ///
     /// # Returns
-    /// Nothing. This function updates both caps and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the owner
-    /// - If user_deposit_cap is negative
-    /// - If tvl_cap is negative
-    /// - If tvl_cap is less than user_deposit_cap (when both are non-zero)
+    /// None.
     ///
     /// # Events
-    /// Emits `CapsUpdatedEvent`
     ///
-    /// # Security
-    /// - Only the owner can modify the caps
+    /// Emits:
+    /// - `CapsUpdatedEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the owner.
+    /// - If user_deposit_cap is negative.
+    /// - If tvl_cap is negative.
+    /// - If tvl_cap is less than user_deposit_cap (when both are non-zero).
     pub fn set_caps(env: Env, user_deposit_cap: i128, tvl_cap: i128) {
         Self::require_initialized(&env);
         Self::require_is_owner(&env);
@@ -1858,25 +1899,30 @@ impl NeuroWealthVault {
     /// `LimitsUpdatedEvent` with all old and new values.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `min` - New per-user deposit cap in USDC units (7 decimal places)
-    /// * `max` - New TVL cap in USDC units (7 decimal places)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `min` - New per-user deposit cap in USDC units (7 decimal places).
+    /// * `max` - New TVL cap in USDC units (7 decimal places).
     ///
     /// # Returns
-    /// Nothing. This function updates both caps and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the owner
+    /// Returns `Ok(())` on success, or a `VaultError` if validation fails.
     ///
     /// # Events
-    /// Emits `LimitsUpdatedEvent` with:
-    /// - `old_min`: Previous user deposit cap
-    /// - `new_min`: New user deposit cap
-    /// - `old_max`: Previous TVL cap
-    /// - `new_max`: New TVL cap
     ///
-    /// # Security
-    /// - Only the owner can modify the limits
+    /// Emits:
+    /// - `LimitsUpdatedEvent`
+    ///
+    /// # Errors
+    ///
+    /// Returns:
+    /// - `VaultError::NegativeMin` if min is negative.
+    /// - `VaultError::NegativeMax` if max is negative.
+    /// - `VaultError::MaxLessThanMin` if max < min.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the owner.
     pub fn set_limits(env: Env, min: i128, max: i128) -> Result<(), VaultError> {
         Self::require_initialized(&env);
         Self::require_is_owner(&env);
@@ -1924,27 +1970,29 @@ impl NeuroWealthVault {
     /// `LimitsUpdatedEvent` with all old and new values.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `min` - New minimum deposit limit in USDC units (7 decimal places)
-    /// * `max` - New maximum deposit limit in USDC units (7 decimal places)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `min` - New minimum deposit limit in USDC units (7 decimal places).
+    /// * `max` - New maximum deposit limit in USDC units (7 decimal places).
     ///
     /// # Returns
-    /// Nothing. This function updates both deposit limits and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the owner
-    /// - If min is less than 1 USDC (1_000_000 stroops)
-    /// - If max is less than min
+    /// None.
     ///
     /// # Events
-    /// Emits `LimitsUpdatedEvent` with:
-    /// - `old_min`: Previous minimum deposit limit
-    /// - `new_min`: New minimum deposit limit
-    /// - `old_max`: Previous maximum deposit limit
-    /// - `new_max`: New maximum deposit limit
     ///
-    /// # Security
-    /// - Only the owner can modify the deposit limits
+    /// Emits:
+    /// - `LimitsUpdatedEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the owner.
+    /// - If min is less than 1 USDC (1_000_000 stroops).
+    /// - If max is less than min.
     pub fn set_deposit_limits(env: Env, min: i128, max: i128) {
         Self::require_initialized(&env);
         Self::require_is_owner(&env);
@@ -2042,23 +2090,26 @@ impl NeuroWealthVault {
     /// or migration to a new agent implementation.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `new_agent` - The new AI agent address
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `new_agent` - The new AI agent address.
     ///
     /// # Returns
-    /// Nothing. This function updates the agent and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the owner
+    /// None.
     ///
     /// # Events
-    /// Emits `AgentUpdatedEvent` with:
-    /// - `old_agent`: Previous agent address
-    /// - `new_agent`: New agent address
     ///
-    /// # Security
-    /// - Only the owner can update the agent
-    /// - The old agent will immediately lose access to rebalance()
+    /// Emits:
+    /// - `AgentUpdatedEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the owner.
     pub fn update_agent(env: Env, new_agent: Address) {
         Self::require_initialized(&env);
         Self::require_is_owner(&env);
@@ -2082,19 +2133,27 @@ impl NeuroWealthVault {
     /// before the vault can interact with Blend for yield generation.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `owner` - The owner address (must authorize this call)
-    /// * `pool_address` - The Blend pool contract address
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `owner` - The owner address (must authorize this call).
+    /// * `pool_address` - The Blend pool contract address.
     ///
     /// # Returns
-    /// Nothing. This function sets the pool address and returns nothing.
+    ///
+    /// None.
+    ///
+    /// # Events
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
     ///
     /// # Panics
-    /// - If the caller is not the owner
     ///
-    /// # Security
-    /// - Only the owner can set the Blend pool address
-    /// - The pool address should be verified against Blend's official deployments
+    /// - If the caller is not the owner.
+    /// - If the provided pool_address is not a valid Blend pool contract.
     pub fn set_blend_pool(env: Env, owner: Address, pool_address: Address) {
         Self::require_initialized(&env);
         owner.require_auth();
@@ -2135,24 +2194,26 @@ impl NeuroWealthVault {
     /// explicitly accept ownership to complete the transfer.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `new_owner` - The proposed new owner address
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `new_owner` - The proposed new owner address.
     ///
     /// # Returns
-    /// Nothing. This function sets the pending owner and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the current owner
+    /// None.
     ///
     /// # Events
-    /// Emits `OwnershipTransferInitiatedEvent` with:
-    /// - `current_owner`: Current owner address
-    /// - `pending_owner`: Proposed new owner address
     ///
-    /// # Security
-    /// - Only current owner can initiate transfer
-    /// - New owner must explicitly accept (prevents accidental transfers)
-    /// - Can be cancelled by calling with zero address or initiating new transfer
+    /// Emits:
+    /// - `OwnershipTransferInitiatedEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the current owner.
     pub fn transfer_ownership(env: Env, new_owner: Address) {
         Self::require_initialized(&env);
         Self::require_is_owner(&env);
@@ -2179,25 +2240,27 @@ impl NeuroWealthVault {
     /// prevents accidental transfers to wrong addresses.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `new_owner` - The new owner address (must match pending owner)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `new_owner` - The new owner address (must match pending owner).
     ///
     /// # Returns
-    /// Nothing. This function completes the ownership transfer and returns nothing.
     ///
-    /// # Panics
-    /// - If there is no pending owner
-    /// - If the caller is not the pending owner
+    /// None.
     ///
     /// # Events
-    /// Emits `OwnershipTransferredEvent` with:
-    /// - `old_owner`: Previous owner address
-    /// - `new_owner`: New owner address
     ///
-    /// # Security
-    /// - Only pending owner can accept
-    /// - Requires explicit authorization from new owner
-    /// - Clears pending owner after successful transfer
+    /// Emits:
+    /// - `OwnershipTransferredEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If there is no pending owner.
+    /// - If the caller is not the pending owner.
     pub fn accept_ownership(env: Env, new_owner: Address) {
         Self::require_initialized(&env);
         new_owner.require_auth();
@@ -2234,22 +2297,26 @@ impl NeuroWealthVault {
     /// if they change their mind or made a mistake.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
+    ///
+    /// * `env` - The Soroban environment.
     ///
     /// # Returns
-    /// Nothing. This function cancels the pending transfer and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the current owner
-    /// - If there is no pending ownership transfer
+    /// None.
     ///
     /// # Events
-    /// Emits `OwnershipTransferCancelledEvent` with:
-    /// - `owner`: Current owner address
-    /// - `cancelled_pending`: The pending owner that was cancelled
     ///
-    /// # Security
-    /// - Only current owner can cancel
+    /// Emits:
+    /// - `OwnershipTransferCancelledEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the current owner.
+    /// - If there is no pending ownership transfer.
     pub fn cancel_ownership_transfer(env: Env) {
         Self::require_initialized(&env);
         Self::require_is_owner(&env);
@@ -2305,33 +2372,35 @@ impl NeuroWealthVault {
     /// Typical values: `allow_decrease = true`, `max_decrease_bps = 1000` (10 %).
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `agent` - The authorized AI agent address (must authorize)
-    /// * `new_total` - New total assets value in USDC units (7 decimal places)
-    /// * `allow_decrease` - Must be `true` when `new_total < current total`
-    /// * `max_decrease_bps` - Per-call decrease cap in basis points (100–10 000);
-    ///   values below 100 are clamped to 100
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `agent` - The authorized AI agent address.
+    /// * `new_total` - The new total asset amount (principal + yield).
+    /// * `allow_decrease` - If true, permits the reported assets to decrease.
+    /// * `max_decrease_bps` - Maximum allowed decrease in basis points (e.g., 500 = 5%).
     ///
     /// # Returns
-    /// Nothing. This function updates total assets and returns nothing.
     ///
-    /// # Panics
-    /// - If the caller is not the authorized agent
-    /// - If `new_total < old_total` and `allow_decrease` is `false`
-    /// - If `new_total < old_total` and the owner has not co-signed
-    /// - If the decrease exceeds `max_decrease_bps` of the current total
-    /// - If vault USDC balance is insufficient to cover `new_total`
+    /// None.
     ///
     /// # Events
-    /// Emits `AssetsUpdatedEvent` with:
-    /// - `old_total`: Previous total assets
-    /// - `new_total`: New total assets
     ///
-    /// # Security
-    /// - Only the agent can call this function
-    /// - Decreases additionally require the owner's authorization (2-of-2)
-    /// - Per-call decrease is capped at `max_decrease_bps` to limit key-compromise blast radius
-    /// - Verifies vault holds sufficient USDC to back the reported assets (inflation guard)
+    /// Emits:
+    /// - `AssetsUpdatedEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If called by anyone other than the authorized agent.
+    /// - If new_total is negative.
+    /// - If there are assets but total_shares is zero.
+    /// - If the vault does not hold enough USDC to back the new_total.
+    /// - If a decrease is attempted but not allowed.
+    /// - If a decrease exceeds the maximum basis points.
+    /// - If a decrease lacks the vault owner's authorization.
     pub fn update_total_assets(
         env: Env,
         agent: Address,
@@ -2439,26 +2508,28 @@ impl NeuroWealthVault {
     /// configuration, owner, agent) is preserved across upgrades.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `owner` - The owner address (must authorize)
-    /// * `new_wasm_hash` - Hash of the new WASM binary (32 bytes)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `owner` - The owner address (must authorize).
+    /// * `new_wasm_hash` - Hash of the new WASM binary (32 bytes).
     ///
     /// # Returns
-    /// Nothing. This function upgrades the contract code in place.
     ///
-    /// # Panics
-    /// - If the caller is not the stored owner
-    /// - If `new_wasm_hash` does not correspond to an uploaded WASM binary
+    /// None.
     ///
     /// # Events
-    /// Emits `UpgradedEvent` with:
-    /// - `old_version`: Contract version before the upgrade
-    /// - `new_version`: Contract version after the upgrade (old + 1)
     ///
-    /// # Security
-    /// - Only the owner can trigger an upgrade
-    /// - The version counter increments atomically with the WASM swap
-    /// - All user balances and state are preserved across upgrades
+    /// Emits:
+    /// - `UpgradedEvent`
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the stored owner.
+    /// - If `new_wasm_hash` does not correspond to an uploaded WASM binary.
     pub fn upgrade(env: Env, owner: Address, new_wasm_hash: BytesN<32>) {
         Self::require_initialized(&env);
         owner.require_auth();
@@ -2518,20 +2589,28 @@ impl NeuroWealthVault {
     /// and reflected in `TotalAssets`.
     ///
     /// This is a pure read and does not extend persistent storage TTL. See
-    /// [`Self::touch_user_ttl`] for explicit TTL maintenance.
+    /// `touch_user_ttl` for explicit TTL maintenance.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `user` - The user address to query
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `user` - The user address to query.
     ///
     /// # Returns
-    /// The user's USDC-equivalent balance in raw units (7 decimal places)
     ///
-    /// # Panics
-    /// None
+    /// Returns the user's USDC-equivalent balance in raw units (7 decimal places).
     ///
     /// # Events
-    /// None
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_balance(env: Env, user: Address) -> i128 {
         Self::require_initialized(&env);
 
@@ -2562,16 +2641,24 @@ impl NeuroWealthVault {
     /// may have been earned through external strategies.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
+    ///
+    /// * `env` - The Soroban environment.
     ///
     /// # Returns
-    /// Total USDC principal deposits in raw units (7 decimal places)
     ///
-    /// # Panics
-    /// None
+    /// Returns total USDC principal deposits in raw units (7 decimal places).
     ///
     /// # Events
-    /// None
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_total_deposits(env: Env) -> i128 {
         Self::require_initialized(&env);
         env.storage()
@@ -2584,6 +2671,26 @@ impl NeuroWealthVault {
     ///
     /// This value is used for share pricing and reflects the full value
     /// backing all outstanding shares.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    ///
+    /// # Returns
+    ///
+    /// Returns the total managed assets.
+    ///
+    /// # Events
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_total_assets(env: Env) -> i128 {
         Self::require_initialized(&env);
         Self::get_total_assets_internal(&env)
@@ -2593,6 +2700,26 @@ impl NeuroWealthVault {
     ///
     /// This is the sum of all user shares and represents proportional ownership
     /// of the vault's total assets.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    ///
+    /// # Returns
+    ///
+    /// Returns the total number of shares.
+    ///
+    /// # Events
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_total_shares(env: Env) -> i128 {
         Self::require_initialized(&env);
         Self::get_total_shares_internal(&env)
@@ -2603,8 +2730,29 @@ impl NeuroWealthVault {
     /// This is the number of vault shares the user owns.
     ///
     /// This is a pure read and does not extend persistent storage TTL. Call
-    /// [`Self::touch_user_ttl`] when an off-chain maintainer or indexer needs to
+    /// `touch_user_ttl` when an off-chain maintainer or indexer needs to
     /// refresh rent for a user's `Shares` entry.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `user` - The user address.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of shares the user owns.
+    ///
+    /// # Events
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_shares(env: Env, user: Address) -> i128 {
         Self::require_initialized(&env);
         Self::read_shares(&env, &user)
@@ -2618,12 +2766,25 @@ impl NeuroWealthVault {
     /// rewrite `Shares` and refresh TTL as part of normal ledger writes.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `user` - The user whose share entry TTL should be extended
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `user` - The user whose share entry TTL should be extended.
     ///
     /// # Returns
-    /// `true` if a `Shares` entry existed and TTL was extended; `false` if the user
-    /// has no share entry (including zero-share users who never deposited).
+    ///
+    /// Returns `true` if a `Shares` entry existed and TTL was extended; `false` otherwise.
+    ///
+    /// # Events
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn touch_user_ttl(env: Env, user: Address) -> bool {
         Self::require_initialized(&env);
         let shares_key = DataKey::Shares(user.clone());
@@ -2634,6 +2795,28 @@ impl NeuroWealthVault {
         true
     }
 
+    /// Returns both the principal balance and share balance for a user.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `user` - The user address.
+    ///
+    /// # Returns
+    ///
+    /// Returns `UserInfo` containing principal and shares.
+    ///
+    /// # Events
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_user_info(env: Env, user: Address) -> UserInfo {
         Self::require_initialized(&env);
         let principal: i128 = env
@@ -2646,11 +2829,55 @@ impl NeuroWealthVault {
         UserInfo { principal, shares }
     }
 
+    /// Previews the number of shares that would be minted for a given asset deposit.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `assets` - The amount of USDC to deposit (7 decimal places).
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of shares that would be minted.
+    ///
+    /// # Events
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn preview_deposit_to_shares(env: Env, assets: i128) -> i128 {
         Self::require_initialized(&env);
         Self::convert_to_shares_internal(&env, assets)
     }
 
+    /// Previews the number of assets that a given number of shares is worth.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `shares` - The number of shares.
+    ///
+    /// # Returns
+    ///
+    /// Returns the asset value of the shares (7 decimal places).
+    ///
+    /// # Events
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn preview_shares_to_assets(env: Env, shares: i128) -> i128 {
         Self::require_initialized(&env);
         Self::convert_to_assets_internal(&env, shares)
@@ -2668,11 +2895,25 @@ impl NeuroWealthVault {
     /// assumes full liquidity is available.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `assets` - The amount of USDC to withdraw (7 decimal places)
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `assets` - The amount of USDC to withdraw (7 decimal places).
     ///
     /// # Returns
-    /// The number of shares that would be burned
+    ///
+    /// Returns the number of shares that would be burned.
+    ///
+    /// # Events
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn preview_withdraw(env: Env, assets: i128) -> i128 {
         Self::require_initialized(&env);
         Self::convert_to_shares_internal_ceil(&env, assets)
@@ -2680,6 +2921,27 @@ impl NeuroWealthVault {
 
     /// Converts an asset amount (USDC) to the corresponding number of shares,
     /// using the current share price.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `assets` - The asset amount.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of shares.
+    ///
+    /// # Events
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn convert_to_shares(env: Env, assets: i128) -> i128 {
         Self::require_initialized(&env);
         Self::convert_to_shares_internal(&env, assets)
@@ -2687,6 +2949,27 @@ impl NeuroWealthVault {
 
     /// Converts a share amount to the corresponding asset amount (USDC),
     /// using the current share price.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `shares` - The number of shares.
+    ///
+    /// # Returns
+    ///
+    /// Returns the asset amount.
+    ///
+    /// # Events
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn convert_to_assets(env: Env, shares: i128) -> i128 {
         Self::require_initialized(&env);
         Self::convert_to_assets_internal(&env, shares)
@@ -2698,16 +2981,24 @@ impl NeuroWealthVault {
     /// between yield strategies.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
+    ///
+    /// * `env` - The Soroban environment.
     ///
     /// # Returns
-    /// The agent's Address
     ///
-    /// # Panics
-    /// None
+    /// Returns the agent's Address.
     ///
     /// # Events
-    /// None
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_agent(env: Env) -> Address {
         Self::require_initialized(&env);
         env.storage().instance().get(&DataKey::Agent).unwrap()
@@ -2718,16 +3009,24 @@ impl NeuroWealthVault {
     /// The owner can pause/unpause the vault, set limits, and upgrade the contract.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
+    ///
+    /// * `env` - The Soroban environment.
     ///
     /// # Returns
-    /// The owner's Address
     ///
-    /// # Panics
-    /// None
+    /// Returns the owner's Address.
     ///
     /// # Events
-    /// None
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_owner(env: Env) -> Address {
         Self::require_initialized(&env);
         env.storage().instance().get(&DataKey::Owner).unwrap()
@@ -2736,16 +3035,24 @@ impl NeuroWealthVault {
     /// Returns whether the vault is currently paused.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
+    ///
+    /// * `env` - The Soroban environment.
     ///
     /// # Returns
-    /// True if paused, false otherwise
     ///
-    /// # Panics
-    /// None
+    /// Returns true if paused, false otherwise.
     ///
     /// # Events
-    /// None
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn is_paused(env: Env) -> bool {
         Self::require_initialized(&env);
         env.storage()
@@ -2759,16 +3066,24 @@ impl NeuroWealthVault {
     /// Used to track upgrades and ensure compatibility with external systems.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
+    ///
+    /// * `env` - The Soroban environment.
     ///
     /// # Returns
-    /// The current contract version (u32)
     ///
-    /// # Panics
-    /// None
+    /// Returns the current contract version (u32).
     ///
     /// # Events
-    /// None
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_version(env: Env) -> u32 {
         Self::require_initialized(&env);
         env.storage().instance().get(&DataKey::Version).unwrap_or(1)
@@ -2777,16 +3092,24 @@ impl NeuroWealthVault {
     /// Returns the USDC token address.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
+    ///
+    /// * `env` - The Soroban environment.
     ///
     /// # Returns
-    /// The USDC token contract address
     ///
-    /// # Panics
-    /// None
+    /// Returns the USDC token contract address.
     ///
     /// # Events
-    /// None
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_usdc_token(env: Env) -> Address {
         Self::require_initialized(&env);
         env.storage().instance().get(&DataKey::UsdcToken).unwrap()
@@ -2798,16 +3121,24 @@ impl NeuroWealthVault {
     /// instead of relying solely on event assertions.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
+    ///
+    /// * `env` - The Soroban environment.
     ///
     /// # Returns
-    /// The current protocol symbol (e.g., "blend", "none")
     ///
-    /// # Panics
-    /// None
+    /// Returns the current protocol symbol (e.g., "blend", "none").
     ///
     /// # Events
-    /// None
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_current_protocol(env: Env) -> Symbol {
         Self::require_initialized(&env);
         env.storage()
@@ -2822,16 +3153,24 @@ impl NeuroWealthVault {
     /// pool configuration.
     ///
     /// # Arguments
-    /// * `env` - The Soroban environment
+    ///
+    /// * `env` - The Soroban environment.
     ///
     /// # Returns
-    /// The Blend pool contract address, or None if not configured
     ///
-    /// # Panics
-    /// None
+    /// Returns the Blend pool contract address, or None if not configured.
     ///
     /// # Events
-    /// None
+    ///
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// None.
     pub fn get_blend_pool(env: Env) -> Option<Address> {
         Self::require_initialized(&env);
         env.storage().instance().get(&DataKey::BlendPool)
@@ -2859,26 +3198,34 @@ impl NeuroWealthVault {
     /// ### Rounding
     ///
     /// Integer division truncates toward zero (floor rounding).  The result is
-    /// therefore always ≤ the true rational value, which is the conservative
+    /// therefore always <= the true rational value, which is the conservative
     /// direction for a vault: it never over-reports the share price.
     ///
     /// ### Interpretation
     ///
     /// A return value of `10_500_000` means each share is currently worth
-    /// `1.05` USDC (5 % yield accrued since inception).
+    /// `1.05` USDC (5% yield accrued since inception).
     ///
-    /// ## Arguments
-    /// * `env` - The Soroban environment
+    /// # Arguments
     ///
-    /// ## Returns
-    /// Exchange rate as a scaled `i128`.  Divide by `10_000_000` (7 decimal
+    /// * `env` - The Soroban environment.
+    ///
+    /// # Returns
+    ///
+    /// Returns the exchange rate as a scaled `i128`. Divide by `10_000_000` (7 decimal
     /// places) to obtain the human-readable assets-per-share ratio.
     ///
-    /// ## Panics
-    /// - If the vault has not been initialized yet.
+    /// # Events
     ///
-    /// ## Events
-    /// None – this is a pure read-only query.
+    /// None.
+    ///
+    /// # Errors
+    ///
+    /// None.
+    ///
+    /// # Panics
+    ///
+    /// - If the vault has not been initialized yet.
     ///
     /// ## Example (off-chain pseudo-code)
     /// ```text

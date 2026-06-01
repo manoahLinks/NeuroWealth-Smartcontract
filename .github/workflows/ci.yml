@@ -26,6 +26,9 @@ jobs:
           - name: "Tests"
             step: "test"
             working_directory: "neurowealth-vault"
+          - name: "Documentation Check"
+            step: "doc"
+            working_directory: "neurowealth-vault"
           - name: "Build WASM"
             step: "build-wasm"
             working_directory: "neurowealth-vault"
@@ -94,6 +97,9 @@ jobs:
               ;;
             test)
               cargo test --verbose
+              ;;
+            doc)
+              cargo doc --no-deps
               ;;
             build-wasm)
               RUSTFLAGS="-C target-cpu=mvp" cargo build \
