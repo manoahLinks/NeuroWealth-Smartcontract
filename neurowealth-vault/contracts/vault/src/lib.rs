@@ -2171,23 +2171,40 @@ impl NeuroWealthVault {
 
     /// Updates the total assets tracked by the vault.
     ///
-    /// This function allows the authorized AI agent to update the total
-    /// assets value to reflect realized yield from external strategies.
-    /// Total assets are expected to be monotonically non-decreasing except
-    /// for user deposits/withdrawals.
+    /// The agent calls this to reflect realized yield (increase) or a confirmed
+    /// strategy loss / bad-debt write-down (decrease).
+    ///
+    /// ## Decrease policy
+    ///
+    /// Decreases are permitted only when **all** of the following hold:
+    ///
+    /// 1. `allow_decrease` is `true` — the caller explicitly opts in.
+    /// 2. The **owner** has co-signed this transaction (`owner.require_auth()`).
+    ///    A rogue agent cannot unilaterally slash user value; the loss must be
+    ///    countersigned by the vault operator.
+    /// 3. The decrease does not exceed `max_decrease_bps` basis points of the
+    ///    current total (minimum floor: 100 bps = 1%). This caps the worst-case
+    ///    loss any single call can commit, limiting damage from a compromised key.
+    ///
+    /// Typical values: `allow_decrease = true`, `max_decrease_bps = 1000` (10 %).
     ///
     /// # Arguments
     /// * `env` - The Soroban environment
     /// * `agent` - The authorized AI agent address (must authorize)
     /// * `new_total` - New total assets value in USDC units (7 decimal places)
+    /// * `allow_decrease` - Must be `true` when `new_total < current total`
+    /// * `max_decrease_bps` - Per-call decrease cap in basis points (100–10 000);
+    ///   values below 100 are clamped to 100
     ///
     /// # Returns
     /// Nothing. This function updates total assets and returns nothing.
     ///
     /// # Panics
     /// - If the caller is not the authorized agent
-    /// - If new_total is less than old_total
-    /// - If vault USDC balance is insufficient to cover new_total
+    /// - If `new_total < old_total` and `allow_decrease` is `false`
+    /// - If `new_total < old_total` and the owner has not co-signed
+    /// - If the decrease exceeds `max_decrease_bps` of the current total
+    /// - If vault USDC balance is insufficient to cover `new_total`
     ///
     /// # Events
     /// Emits `AssetsUpdatedEvent` with:
@@ -2195,11 +2212,10 @@ impl NeuroWealthVault {
     /// - `new_total`: New total assets
     ///
     /// # Security
-    /// - Only the agent can update total assets
-    /// - Verifies vault actually holds sufficient USDC to back the reported assets
-    /// - Prevents agent from inflating asset values beyond actual holdings
-    /// - Allows controlled decreases for legitimate loss reporting (strategy loss/bad debt)
-    /// - Decrease is bounded: cannot exceed max_decrease_bps (default 10% per call)
+    /// - Only the agent can call this function
+    /// - Decreases additionally require the owner's authorization (2-of-2)
+    /// - Per-call decrease is capped at `max_decrease_bps` to limit key-compromise blast radius
+    /// - Verifies vault holds sufficient USDC to back the reported assets (inflation guard)
     pub fn update_total_assets(
         env: Env,
         agent: Address,
@@ -2208,7 +2224,6 @@ impl NeuroWealthVault {
         max_decrease_bps: u32,
     ) {
         Self::require_initialized(&env);
-        // Agent-controlled yield update
         let stored_agent: Address = env.storage().instance().get(&DataKey::Agent).unwrap();
         assert_eq!(
             agent, stored_agent,
@@ -2218,17 +2233,17 @@ impl NeuroWealthVault {
 
         let old_total = Self::get_total_assets_internal(&env);
 
-        // Handle decrease case - only allowed with explicit authorization
         if new_total < old_total {
-            // Require explicit authorization to allow decreases
             assert!(allow_decrease, "vault: total assets decrease not allowed");
 
-            // Bound the decrease to prevent abuse
-            // max_decrease_bps is in basis points (1/100 of 1%)
-            // Default 1000 bps = 10% maximum decrease per call
-            let max_decrease_bps = max_decrease_bps.max(100); // Minimum 1% bound
+            // Owner must co-sign any loss report. A single compromised key
+            // cannot unilaterally reduce user asset values.
+            Self::require_is_owner(&env);
+
+            // Cap the per-call decrease (minimum floor: 100 bps = 1 %).
+            let effective_cap_bps = max_decrease_bps.max(100);
             let max_decrease = old_total
-                .checked_mul(max_decrease_bps as i128)
+                .checked_mul(effective_cap_bps as i128)
                 .expect("vault: max decrease mul overflow")
                 / 10_000;
             let actual_decrease = old_total
@@ -2237,8 +2252,7 @@ impl NeuroWealthVault {
 
             assert!(
                 actual_decrease <= max_decrease,
-                "vault: decrease exceeds maximum allowed ({} bps)",
-                max_decrease_bps
+                "vault: decrease exceeds maximum allowed bps"
             );
         }
 
@@ -2874,8 +2888,13 @@ impl NeuroWealthVault {
 
     /// Validates that a deposit is within the user's cap.
     ///
+    /// The cap is enforced against the user's current **asset value** (shares ×
+    /// share price, which includes accrued yield), not just deposited principal.
+    /// This makes the per-user cap a true exposure limit: once yield pushes a
+    /// user's position to or above the cap, further deposits are rejected.
+    ///
     /// # Panics
-    /// - If user's new balance would exceed the deposit cap
+    /// - If user's new asset value (current assets + deposit amount) would exceed the cap
     #[inline]
     fn require_within_deposit_cap(env: &Env, user: &Address, amount: i128) {
         let cap: i128 = env
@@ -2884,13 +2903,14 @@ impl NeuroWealthVault {
             .get(&DataKey::UserDepositCap)
             .unwrap_or(0_i128);
         if cap > 0 {
-            let current_balance: i128 = env
+            let user_shares: i128 = env
                 .storage()
                 .persistent()
-                .get(&DataKey::Balance(user.clone()))
+                .get(&DataKey::Shares(user.clone()))
                 .unwrap_or(0_i128);
+            let current_assets = Self::convert_to_assets_internal(env, user_shares);
             assert!(
-                current_balance
+                current_assets
                     .checked_add(amount)
                     .expect("vault: cap check overflow")
                     <= cap,

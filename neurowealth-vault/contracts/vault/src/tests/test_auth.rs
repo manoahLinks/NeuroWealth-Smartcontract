@@ -332,3 +332,41 @@ fn test_withdraw_requires_user_auth() {
         "withdraw must fail without the user's authorization"
     );
 }
+
+// ============================================================================
+// LOSS REPORTING — OWNER CO-SIGN REQUIREMENT
+// ============================================================================
+
+/// Negative: with only the agent's auth present, a decrease must fail because
+/// `require_is_owner` cannot be satisfied. Guards against a removed auth check.
+#[test]
+fn test_decrease_requires_owner_cosign() {
+    let env = Env::default();
+    let (contract_id, agent, _owner, usdc_token) = setup(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    let user = Address::generate(&env);
+    let deposit_amount = 10_000_000_i128;
+    mint_and_deposit(&env, &client, &usdc_token, &user, deposit_amount);
+
+    let new_total = deposit_amount - 500_000_i128; // 5% loss, within 10% cap
+
+    // Only the agent's auth is available — the owner has NOT signed.
+    env.mock_auths(&[MockAuth {
+        address: &agent,
+        invoke: &MockAuthInvoke {
+            contract: &contract_id,
+            fn_name: "update_total_assets",
+            args: (agent.clone(), new_total, true, 1000u32).into_val(&env),
+            sub_invokes: &[],
+        },
+    }]);
+
+    let result = client.try_update_total_assets(&agent, &new_total, &true, &1000u32);
+    assert!(
+        result.is_err(),
+        "decrease must fail when owner has not co-signed"
+    );
+    // Total assets must be unchanged.
+    assert_eq!(client.get_total_assets(), deposit_amount);
+}
