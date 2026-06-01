@@ -1,0 +1,19 @@
+[package]
+name = "neurowealth-vault-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+neurowealth-vault = { path = "../contracts/vault" }
+soroban-sdk = { workspace = true, features = ["testutils"] }
+
+[[bin]]
+name = "deposit_withdraw_sequence"
+path = "fuzz_targets/deposit_withdraw_sequence.rs"
+test = false
+doc = false

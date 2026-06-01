@@ -190,7 +190,7 @@ Minimum deposit: 1 USDC. Maximum per user: 10,000 USDC (configurable)
 Emergency pause functionality available to contract owner
 Two-step ownership transfer prevents accidental ownership loss
 Vault balance verification ensures reported assets match actual holdings
-TTL extension on critical storage prevents data expiration
+Read-only getters have no TTL side effects; call `touch_user_ttl` to extend user share entry TTL
 
 Secure Deployment Sequence
 

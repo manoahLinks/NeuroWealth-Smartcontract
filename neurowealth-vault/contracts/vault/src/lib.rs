@@ -519,6 +519,11 @@ const DEFAULT_USER_DEPOSIT_CAP: i128 = 10_000_000_000_i128;
 const DEFAULT_MIN_DEPOSIT: i128 = 1_000_000_i128;
 const DEFAULT_MAX_DEPOSIT: i128 = 10_000_000_000_i128;
 
+/// Minimum ledgers remaining before `touch_user_ttl` extends a user's `Shares` entry.
+const USER_SHARES_TTL_THRESHOLD: u32 = 100;
+/// Target ledgers to extend a user's `Shares` entry to when maintaining TTL.
+const USER_SHARES_TTL_EXTEND_TO: u32 = 100;
+
 pub(crate) const TOPIC_INIT: Symbol = symbol_short!("init");
 pub(crate) const TOPIC_DEPOSIT: Symbol = symbol_short!("deposit");
 pub(crate) const TOPIC_WITHDRAW: Symbol = symbol_short!("withdraw");
@@ -2346,11 +2351,34 @@ impl NeuroWealthVault {
     // READ FUNCTIONS
     // ==========================================================================
 
+    /// Reads a user's share balance from persistent storage (no TTL side effects).
+    fn read_shares(env: &Env, user: &Address) -> i128 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Shares(user.clone()))
+            .unwrap_or(0_i128)
+    }
+
+    /// Extends the persistent TTL for a user's `Shares` entry when it exists.
+    fn extend_user_shares_ttl(env: &Env, user: &Address) {
+        let shares_key = DataKey::Shares(user.clone());
+        if env.storage().persistent().has(&shares_key) {
+            env.storage().persistent().extend_ttl(
+                &shares_key,
+                USER_SHARES_TTL_THRESHOLD,
+                USER_SHARES_TTL_EXTEND_TO,
+            );
+        }
+    }
+
     /// Returns the USDC balance of a specific user.
     ///
     /// This is the user's claim on the vault's total managed assets, based
     /// on their share balance. It includes any yield that has been accrued
     /// and reflected in `TotalAssets`.
+    ///
+    /// This is a pure read and does not extend persistent storage TTL. See
+    /// [`Self::touch_user_ttl`] for explicit TTL maintenance.
     ///
     /// # Arguments
     /// * `env` - The Soroban environment
@@ -2366,17 +2394,8 @@ impl NeuroWealthVault {
     /// None
     pub fn get_balance(env: Env, user: Address) -> i128 {
         Self::require_initialized(&env);
-        // Extend TTL for user's share balance to prevent expiration
-        let shares_key = DataKey::Shares(user.clone());
-        if env.storage().persistent().has(&shares_key) {
-            env.storage().persistent().extend_ttl(&shares_key, 100, 100);
-        }
 
-        let shares: i128 = env
-            .storage()
-            .persistent()
-            .get(&shares_key)
-            .unwrap_or(0_i128);
+        let shares = Self::read_shares(&env, &user);
         if shares == 0 {
             return 0;
         }
@@ -2442,18 +2461,37 @@ impl NeuroWealthVault {
     /// Returns the share balance of a specific user.
     ///
     /// This is the number of vault shares the user owns.
+    ///
+    /// This is a pure read and does not extend persistent storage TTL. Call
+    /// [`Self::touch_user_ttl`] when an off-chain maintainer or indexer needs to
+    /// refresh rent for a user's `Shares` entry.
     pub fn get_shares(env: Env, user: Address) -> i128 {
         Self::require_initialized(&env);
-        // Extend TTL for user's share balance to prevent expiration
-        let shares_key = DataKey::Shares(user.clone());
-        if env.storage().persistent().has(&shares_key) {
-            env.storage().persistent().extend_ttl(&shares_key, 100, 100);
-        }
+        Self::read_shares(&env, &user)
+    }
 
-        env.storage()
-            .persistent()
-            .get(&shares_key)
-            .unwrap_or(0_i128)
+    /// Extends the persistent TTL for a user's `Shares` entry.
+    ///
+    /// Off-chain indexers and maintenance jobs should call this instead of relying
+    /// on read-only getters (`get_balance`, `get_shares`) to keep user share data
+    /// from expiring. State-changing calls such as `deposit` and `withdraw` already
+    /// rewrite `Shares` and refresh TTL as part of normal ledger writes.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    /// * `user` - The user whose share entry TTL should be extended
+    ///
+    /// # Returns
+    /// `true` if a `Shares` entry existed and TTL was extended; `false` if the user
+    /// has no share entry (including zero-share users who never deposited).
+    pub fn touch_user_ttl(env: Env, user: Address) -> bool {
+        Self::require_initialized(&env);
+        let shares_key = DataKey::Shares(user.clone());
+        if !env.storage().persistent().has(&shares_key) {
+            return false;
+        }
+        Self::extend_user_shares_ttl(&env, &user);
+        true
     }
 
     pub fn get_user_info(env: Env, user: Address) -> UserInfo {
@@ -2463,7 +2501,7 @@ impl NeuroWealthVault {
             .persistent()
             .get(&DataKey::Balance(user.clone()))
             .unwrap_or(0_i128);
-        let shares = Self::get_shares(env, user);
+        let shares = Self::read_shares(&env, &user);
 
         UserInfo { principal, shares }
     }

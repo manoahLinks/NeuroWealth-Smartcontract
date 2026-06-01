@@ -39,6 +39,40 @@ Persistent storage is used for per-user data that requires efficient access.
 | `Balance(Address)` | i128 | User's principal USDC deposit amount |
 | `Shares(Address)` | i128 | User's share balance (proportional ownership) |
 
+## Persistent Storage TTL Policy
+
+Soroban persistent entries require rent (TTL). Expired `Shares` entries can be
+archived and must be restored before use.
+
+### Read-only getters (no TTL writes)
+
+`get_balance` and `get_shares` only read storage. They do **not** call
+`extend_ttl`, so RPC/indexer polling does not pay write costs or mutate ledger
+state during simulation.
+
+Implications for indexers and dashboards:
+
+- High-frequency balance polling is safe and side-effect free.
+- TTL for inactive users is **not** refreshed by read-only getters.
+- Use `touch_user_ttl(user)` in a scheduled maintenance transaction when a user
+  still has (or had) shares and you need to extend the `Shares` entry TTL without
+  depositing or withdrawing.
+
+### Explicit TTL maintenance
+
+`touch_user_ttl(user)` extends the `Shares(user)` persistent entry when it
+exists, using threshold **100** ledgers and extend-to **100** ledgers (same
+parameters previously applied inside the read getters).
+
+Returns `false` when no `Shares` entry exists (never deposited, or entry already
+expired and removed).
+
+### State-changing paths
+
+`deposit`, `withdraw`, and `withdraw_all` update `Shares(user)` via `set`, which
+refreshes TTL as part of normal writes. Routine user activity keeps share data
+alive without calling `touch_user_ttl`.
+
 ## DataKey Structure
 
 ```rust
@@ -211,7 +245,9 @@ Vault Contract → USDC Token Contract (via token::Client)
 
 ```
 AI Agent → Vault Contract
-           ├── get_balance(user) - monitor positions
+           ├── get_balance(user) - monitor positions (read-only, no TTL write)
+           ├── get_shares(user) - monitor share balances (read-only)
+           ├── touch_user_ttl(user) - optional TTL maintenance for idle users
            ├── get_total_deposits() - monitor TVL
            └── rebalance(strategy) - signal strategy changes
            ↓
