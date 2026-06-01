@@ -2343,14 +2343,17 @@ impl NeuroWealthVault {
         let stored_owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
         assert!(owner == stored_owner, "vault: caller is not the owner");
 
+        // Soroban will trap/panic here if the hash is not installed on the network.
+        // We perform the upgrade first to ensure a bad hash does not leave us with
+        // an incremented version but failed upgrade.
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
+
         let old_version: u32 = env.storage().instance().get(&DataKey::Version).unwrap_or(1);
 
         let new_version = old_version.checked_add(1).expect("vault: version overflow");
         env.storage()
             .instance()
             .set(&DataKey::Version, &new_version);
-
-        env.deployer().update_current_contract_wasm(new_wasm_hash);
 
         env.events().publish(
             (TOPIC_UPGRADED,),

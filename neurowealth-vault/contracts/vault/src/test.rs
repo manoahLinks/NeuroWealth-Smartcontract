@@ -669,6 +669,27 @@ fn test_version_increments_correctly() {
 }
 
 #[test]
+fn test_invalid_hash_does_not_increment_version() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, _owner) = setup_vault(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    let owner = client.get_owner();
+    let initial_version = client.get_version();
+
+    let fake_wasm_hash = BytesN::from_array(&env, &[0u8; 32]);
+
+    // This should fail because the hash is invalid
+    let result = client.try_upgrade(&owner, &fake_wasm_hash);
+    assert!(result.is_err());
+
+    // The version should remain unchanged
+    assert_eq!(client.get_version(), initial_version);
+}
+
+#[test]
 fn test_upgrade_emits_upgraded_event() {
     let env = Env::default();
     env.mock_all_auths();
