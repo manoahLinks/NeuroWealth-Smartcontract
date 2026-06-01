@@ -1,6 +1,7 @@
 mod test_access_control;
 mod test_update_total_assets_blend;
 mod test_auth;
+mod test_balance_shares_invariant;
 #[cfg(feature = "blend-devnet")]
 mod test_blend_devnet;
 mod test_blend_integration;
