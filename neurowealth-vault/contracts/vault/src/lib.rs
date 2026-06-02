@@ -589,6 +589,21 @@ pub struct BlendWithdrawEvent {
     pub success: bool,
 }
 
+/// Emitted when the Blend pool address is configured.
+///
+/// # Topics
+/// - `SymbolShort("blend_cfg")` - Event identifier
+#[allow(missing_docs)]
+#[contracttype]
+pub struct BlendPoolConfiguredEvent {
+    /// Previous Blend pool address, or None if it was not configured
+    pub old_pool: Option<Address>,
+    /// Newly configured Blend pool address
+    pub new_pool: Address,
+    /// Owner who triggered the configuration change
+    pub owner: Address,
+}
+
 /// Emitted when a rebalance aborts due to a protocol exit failure.
 ///
 /// Emitted instead of panicking so the failure is observable on-chain without
@@ -673,6 +688,7 @@ pub(crate) const TOPIC_ASSETS_UPDATED: Symbol = symbol_short!("assets");
 pub(crate) const TOPIC_UPGRADED: Symbol = symbol_short!("upgraded");
 pub(crate) const TOPIC_BLEND_SUPPLY: Symbol = symbol_short!("blend_sup");
 pub(crate) const TOPIC_BLEND_WITHDRAW: Symbol = symbol_short!("blend_wd");
+pub(crate) const TOPIC_BLEND_POOL_CONFIGURED: Symbol = symbol_short!("blend_cfg");
 pub(crate) const TOPIC_PROTOCOL_CHANGED: Symbol = symbol_short!("proto_chg");
 pub(crate) const TOPIC_REBALANCE_FAILED: Symbol = symbol_short!("reb_fail");
 
@@ -2118,7 +2134,7 @@ impl NeuroWealthVault {
     ///
     /// # Events
     ///
-    /// None.
+    /// - `BlendPoolConfiguredEvent`
     ///
     /// # Errors
     ///
@@ -2320,6 +2336,8 @@ impl NeuroWealthVault {
         let vault_address = env.current_contract_address();
         BlendPoolClient::get_balance(&env, &pool_address, &usdc_token, &vault_address);
 
+        let old_pool: Option<Address> = env.storage().instance().get(&DataKey::BlendPool);
+
         env.storage()
             .instance()
             .set(&DataKey::BlendPool, &pool_address);
@@ -2330,6 +2348,15 @@ impl NeuroWealthVault {
                 .instance()
                 .set(&DataKey::CurrentProtocol, &symbol_short!("none"));
         }
+
+        env.events().publish(
+            (TOPIC_BLEND_POOL_CONFIGURED,),
+            BlendPoolConfiguredEvent {
+                old_pool,
+                new_pool: pool_address.clone(),
+                owner: owner.clone(),
+            },
+        );
     }
 
     /// Updates the ledger TTL used when approving Blend token spend.

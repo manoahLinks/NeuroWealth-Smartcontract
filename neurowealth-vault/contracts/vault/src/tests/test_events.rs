@@ -2,13 +2,13 @@
 
 use super::utils::*;
 use crate::{
-    AgentUpdatedEvent, AssetsUpdatedEvent, BlendSupplyEvent, BlendWithdrawEvent, CapsUpdatedEvent,
-    DepositEvent, EmergencyPausedEvent, LimitsUpdatedEvent, RebalanceEvent, TvlCapUpdatedEvent,
-    UserDepositCapUpdatedEvent, VaultInitializedEvent, VaultPausedEvent, VaultUnpausedEvent,
-    WithdrawEvent, TOPIC_AGENT_UPDATED, TOPIC_ASSETS_UPDATED, TOPIC_BLEND_SUPPLY,
-    TOPIC_BLEND_WITHDRAW, TOPIC_CAPS_UPDATED, TOPIC_DEPOSIT, TOPIC_EMERGENCY_PAUSED, TOPIC_INIT,
-    TOPIC_LIMITS_UPDATED, TOPIC_PAUSED, TOPIC_REBALANCE, TOPIC_TVL_CAP_UPDATED, TOPIC_UNPAUSED,
-    TOPIC_USER_CAP_UPDATED, TOPIC_WITHDRAW,
+    AgentUpdatedEvent, AssetsUpdatedEvent, BlendPoolConfiguredEvent, BlendSupplyEvent,
+    BlendWithdrawEvent, CapsUpdatedEvent, DepositEvent, EmergencyPausedEvent, LimitsUpdatedEvent,
+    RebalanceEvent, TvlCapUpdatedEvent, UserDepositCapUpdatedEvent, VaultInitializedEvent,
+    VaultPausedEvent, VaultUnpausedEvent, WithdrawEvent, TOPIC_AGENT_UPDATED, TOPIC_ASSETS_UPDATED,
+    TOPIC_BLEND_POOL_CONFIGURED, TOPIC_BLEND_SUPPLY, TOPIC_BLEND_WITHDRAW, TOPIC_CAPS_UPDATED,
+    TOPIC_DEPOSIT, TOPIC_EMERGENCY_PAUSED, TOPIC_INIT, TOPIC_LIMITS_UPDATED, TOPIC_PAUSED,
+    TOPIC_REBALANCE, TOPIC_TVL_CAP_UPDATED, TOPIC_UNPAUSED, TOPIC_USER_CAP_UPDATED, TOPIC_WITHDRAW,
 };
 use soroban_sdk::{symbol_short, testutils::Address as _, Address, BytesN, Env, TryFromVal};
 
@@ -56,6 +56,42 @@ fn test_initialize_emits_init_event_with_correct_payload() {
         event.tvl_cap, expected_tvl_cap,
         "Event tvl_cap should match default cap"
     );
+}
+
+#[test]
+fn test_set_blend_pool_emits_configured_event_with_correct_payload() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, owner, _usdc_token, old_pool) =
+        setup_vault_with_token_and_blend(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+    let new_pool = env.register_contract(None, MockBlendPool);
+
+    client.set_blend_pool(&owner, &old_pool);
+    client.set_blend_pool(&owner, &new_pool);
+
+    let events = find_events_by_topic(env.events().all(), &env, TOPIC_BLEND_POOL_CONFIGURED);
+    assert_eq!(
+        events.len(),
+        2,
+        "Each set_blend_pool call should emit a BlendPoolConfiguredEvent"
+    );
+
+    let (_, _, data) = &events[1];
+    let event = BlendPoolConfiguredEvent::try_from_val(&env, data)
+        .expect("Should be a BlendPoolConfiguredEvent");
+
+    assert_eq!(
+        event.old_pool,
+        Some(old_pool),
+        "Event old_pool should match the previously configured pool"
+    );
+    assert_eq!(
+        event.new_pool, new_pool,
+        "Event new_pool should match the replacement pool"
+    );
+    assert_eq!(event.owner, owner, "Event owner should match the caller");
 }
 
 #[test]

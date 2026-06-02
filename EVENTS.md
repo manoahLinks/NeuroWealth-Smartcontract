@@ -319,6 +319,19 @@ pub struct BlendWithdrawEvent {
 }
 ```
 
+### 15a. BlendPoolConfiguredEvent
+**Topic:** `"blend_cfg"`
+
+Emitted after `set_blend_pool` updates the configured Blend pool address.
+
+```rust
+pub struct BlendPoolConfiguredEvent {
+    pub old_pool: Option<Address>, // Previous pool address, or None on first configuration
+    pub new_pool: Address,         // Newly configured pool address
+    pub owner: Address,            // Owner/admin who triggered the change
+}
+```
+
 ## Upgrade Events
 
 ### 16. UpgradedEvent
