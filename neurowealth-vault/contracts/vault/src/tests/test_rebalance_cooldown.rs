@@ -191,7 +191,10 @@ fn test_rebalance_within_cooldown_returns_error() {
 
     // Second call: must fail with RebalanceCooldownActive (#43)
     let result = client.try_rebalance(&symbol_short!("none"), &0_i128, &0_i128);
-    assert!(result.is_err(), "Second rebalance within cooldown should fail");
+    assert!(
+        result.is_err(),
+        "Second rebalance within cooldown should fail"
+    );
 }
 
 /// After cooldown elapses (ledger advances past the interval), rebalance

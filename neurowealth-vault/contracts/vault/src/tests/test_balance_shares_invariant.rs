@@ -29,10 +29,7 @@ fn within_tolerance(a: i128, b: i128) -> bool {
     abs_diff(a, b) <= ROUNDING_TOLERANCE
 }
 
-fn assert_balance_share_consistency(
-    client: &NeuroWealthVaultClient,
-    user: &Address,
-) {
+fn assert_balance_share_consistency(client: &NeuroWealthVaultClient, user: &Address) {
     let balance = client.get_balance(user);
     let shares = client.get_shares(user);
     let converted = client.convert_to_assets(&shares);
@@ -46,10 +43,7 @@ fn assert_balance_share_consistency(
     );
 }
 
-fn assert_global_vault_invariants(
-    client: &NeuroWealthVaultClient,
-    users: &Vec<Address>,
-) {
+fn assert_global_vault_invariants(client: &NeuroWealthVaultClient, users: &Vec<Address>) {
     let total_assets = client.get_total_assets();
     let total_shares = client.get_total_shares();
 
@@ -59,16 +53,16 @@ fn assert_global_vault_invariants(
     for user in users.iter() {
         let balance = client.get_balance(&user);
         let shares = client.get_shares(&user);
-        
+
         assert!(balance >= 0, "Negative balance");
         assert!(shares >= 0, "Negative shares");
-        
+
         sum_balances += balance;
         sum_shares += shares;
-        
+
         assert_balance_share_consistency(client, &user);
     }
-    
+
     assert!(total_assets >= 0, "Negative total assets");
     assert!(total_shares >= 0, "Negative total shares");
 
@@ -84,10 +78,9 @@ fn assert_global_vault_invariants(
     assert_eq!(
         total_shares, sum_shares,
         "Total Vault Shares ({}) != Sum(User Shares) ({})",
-        total_shares,
-        sum_shares
+        total_shares, sum_shares
     );
-    
+
     // Exchange Rate Validity
     if total_assets > 0 && total_shares > 0 {
         assert!(total_assets > 0 && total_shares > 0, "Invalid share price");
@@ -125,7 +118,7 @@ fn test_invariant_yield_accrual() {
     mint_and_deposit(&env, &client, &usdc_token, &user, deposit_amount);
 
     let shares_before = client.get_shares(&user);
-    
+
     // Simulate yield
     let yield_amount = 5_000_000;
     token_client.mint(&contract_id, &yield_amount);
@@ -133,11 +126,14 @@ fn test_invariant_yield_accrual() {
 
     let mut users = Vec::new(&env);
     users.push_back(user.clone());
-    
+
     assert_global_vault_invariants(&client, &users);
-    
+
     let shares_after = client.get_shares(&user);
-    assert_eq!(shares_before, shares_after, "Share count should be unchanged by yield");
+    assert_eq!(
+        shares_before, shares_after,
+        "Share count should be unchanged by yield"
+    );
 }
 
 #[test]
@@ -162,7 +158,7 @@ fn test_invariant_partial_withdrawal() {
 
     let mut users = Vec::new(&env);
     users.push_back(user.clone());
-    
+
     assert_global_vault_invariants(&client, &users);
 }
 
@@ -195,7 +191,7 @@ fn test_invariant_full_withdrawal() {
 
     let mut users = Vec::new(&env);
     users.push_back(user.clone());
-    
+
     assert_global_vault_invariants(&client, &users);
 }
 
@@ -207,12 +203,12 @@ fn test_invariant_multi_user() {
     let (contract_id, agent, _owner, usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
     let token_client = TestTokenClient::new(&env, &usdc_token);
-    
+
     let user_a = Address::generate(&env);
     let user_b = Address::generate(&env);
 
     mint_and_deposit(&env, &client, &usdc_token, &user_a, 10_000_000);
-    
+
     // Simulate yield
     token_client.mint(&contract_id, &2_000_000);
     client.update_total_assets(&agent, &12_000_000, &false, &0);
@@ -226,7 +222,7 @@ fn test_invariant_multi_user() {
     let mut users = Vec::new(&env);
     users.push_back(user_a.clone());
     users.push_back(user_b.clone());
-    
+
     assert_global_vault_invariants(&client, &users);
 }
 
@@ -235,7 +231,8 @@ fn test_invariant_blend_integration() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, owner, usdc_token, blend_pool) = setup_vault_with_token_and_blend(&env);
+    let (contract_id, agent, owner, usdc_token, blend_pool) =
+        setup_vault_with_token_and_blend(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
     let token_client = TestTokenClient::new(&env, &usdc_token);
     let blend_client = MockBlendPoolClient::new(&env, &blend_pool);
@@ -255,14 +252,14 @@ fn test_invariant_blend_integration() {
     let vault_balance = token_client.balance(&contract_id);
     let blend_balance = blend_client.balance(&usdc_token, &contract_id);
     let new_total = vault_balance + blend_balance;
-    
+
     client.update_total_assets(&agent, &new_total, &false, &0);
 
     let mut users = Vec::new(&env);
     users.push_back(user.clone());
-    
+
     assert_global_vault_invariants(&client, &users);
-    
+
     // Validate: Vault Assets = On-chain Assets + Blend Position Value
     assert_eq!(client.get_total_assets(), new_total);
 }
@@ -272,12 +269,13 @@ fn test_invariant_sequential_lifecycle() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, agent, owner, usdc_token, blend_pool) = setup_vault_with_token_and_blend(&env);
+    let (contract_id, agent, owner, usdc_token, blend_pool) =
+        setup_vault_with_token_and_blend(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
     let token_client = TestTokenClient::new(&env, &usdc_token);
     let blend_client = MockBlendPoolClient::new(&env, &blend_pool);
     client.set_blend_pool(&owner, &blend_pool);
-    
+
     let user_a = Address::generate(&env);
     let mut users = Vec::new(&env);
     users.push_back(user_a.clone());
@@ -307,7 +305,7 @@ fn test_invariant_sequential_lifecycle() {
     // 6. Blend Update
     client.rebalance(&soroban_sdk::Symbol::new(&env, "blend"), &850_i128, &0_i128);
     token_client.mint(&blend_pool, &2_000_000); // Blend Yield
-    
+
     let vault_balance = token_client.balance(&contract_id);
     let blend_balance = blend_client.balance(&usdc_token, &contract_id);
     let new_total = vault_balance + blend_balance;
@@ -376,7 +374,7 @@ fn test_invariant_repeated_yield_updates() {
         token_client.mint(&contract_id, &yield_amount);
         current_assets += yield_amount;
         client.update_total_assets(&agent, &current_assets, &false, &0);
-        
+
         assert_global_vault_invariants(&client, &users);
     }
 }
@@ -389,7 +387,7 @@ fn test_invariant_rounding_edge_cases() {
     let (contract_id, agent, _owner, usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
     let token_client = TestTokenClient::new(&env, &usdc_token);
-    
+
     let user_a = Address::generate(&env);
     let user_b = Address::generate(&env);
     let mut users = Vec::new(&env);
@@ -406,7 +404,7 @@ fn test_invariant_rounding_edge_cases() {
     mint_and_deposit(&env, &client, &usdc_token, &user_b, 2_000_001);
 
     assert_global_vault_invariants(&client, &users);
-    
+
     client.withdraw(&user_b, &1);
     assert_global_vault_invariants(&client, &users);
 }

@@ -1,5 +1,5 @@
 mod test_access_control;
-mod test_update_total_assets_blend;
+mod test_approval_ttl;
 mod test_auth;
 mod test_balance_shares_invariant;
 #[cfg(feature = "blend-devnet")]
@@ -25,6 +25,7 @@ mod test_rounding_math;
 mod test_shares;
 mod test_total_assets_cap;
 mod test_ttl;
+mod test_update_total_assets_blend;
 mod test_withdraw;
 mod test_yield;
 mod utils;

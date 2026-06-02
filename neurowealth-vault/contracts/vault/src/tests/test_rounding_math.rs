@@ -721,7 +721,10 @@ impl SimplePrng {
 
     // Simple LCG random generator
     fn next_u64(&mut self) -> u64 {
-        self.state = self.state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.state = self
+            .state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         self.state
     }
 
@@ -765,10 +768,10 @@ fn test_property_deposit_withdraw_never_increases_shares() {
 
         // Generate randomized subsequent deposit
         let subsequent_deposit = prng.next_range(1_000_000, 10_000_000_000);
-        
+
         // Check shares minted for the subsequent deposit
         let shares_minted = client.preview_deposit_to_shares(&subsequent_deposit);
-        
+
         // Perform actual deposit
         mint_and_deposit(&env, &client, &usdc_token, &user2, subsequent_deposit);
         let actual_shares = client.get_shares(&user2);
@@ -832,7 +835,10 @@ fn test_property_total_shares_conserved_on_transfers() {
         let user3_shares = client.get_shares(&user3);
 
         // Invariant: total shares must equal sum of user shares
-        assert_eq!(total_shares_before, user1_shares + user2_shares + user3_shares);
+        assert_eq!(
+            total_shares_before,
+            user1_shares + user2_shares + user3_shares
+        );
 
         // 2. Perform direct token transfers of the underlying token (USDC)
         // This simulates users sending USDC directly between themselves or to external parties.

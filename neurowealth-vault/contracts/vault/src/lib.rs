@@ -214,6 +214,10 @@ pub enum VaultError {
     MinOutNotMet = 42,
     /// Rebalance called before the configured cooldown has elapsed.
     RebalanceCooldownActive = 43,
+    /// Approval TTL is below the allowed floor.
+    ApprovalTtlTooLow = 44,
+    /// Approval TTL is above the allowed ceiling.
+    ApprovalTtlTooHigh = 45,
 }
 
 // ============================================================================
@@ -290,6 +294,8 @@ pub enum DataKey {
     /// Written at the end of every successful rebalance.
     /// (Issue #59)
     LastRebalanceLedger,
+    /// Number of ledgers added to the current ledger for Blend token approvals.
+    ApprovalTtl,
 }
 
 // ============================================================================
@@ -640,6 +646,11 @@ const DEFAULT_TVL_CAP: i128 = 100_000_000_000_i128;
 const DEFAULT_USER_DEPOSIT_CAP: i128 = 10_000_000_000_i128;
 const DEFAULT_MIN_DEPOSIT: i128 = 1_000_000_i128;
 const DEFAULT_MAX_DEPOSIT: i128 = 10_000_000_000_i128;
+/// Default Blend token approval lifetime.
+/// 100_000 ledgers × ~5s per ledger ≈ 5.7 days on Stellar mainnet.
+pub(crate) const DEFAULT_APPROVAL_TTL: u32 = 100_000;
+const MIN_APPROVAL_TTL: u32 = 1_000;
+const MAX_APPROVAL_TTL: u32 = 500_000;
 
 /// Minimum ledgers remaining before `touch_user_ttl` extends a user's `Shares` entry.
 const USER_SHARES_TTL_THRESHOLD: u32 = 100;
@@ -2164,6 +2175,48 @@ impl NeuroWealthVault {
             .unwrap_or(0)
     }
 
+    /// Sets the number of ledgers that Blend token approvals remain valid.
+    ///
+    /// Only the owner can call this function. The TTL is bounded to prevent
+    /// approvals from expiring too quickly or remaining valid for too long.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment.
+    /// * `ttl` - Number of ledgers to add to the current ledger for approvals.
+    ///
+    /// # Returns
+    /// None.
+    ///
+    /// # Panics
+    /// - If the caller is not the owner.
+    /// - If `ttl` is below 1,000 ledgers.
+    /// - If `ttl` is above 500,000 ledgers.
+    pub fn set_approval_ttl(env: Env, ttl: u32) {
+        Self::require_initialized(&env);
+        Self::require_is_owner(&env);
+
+        if ttl < MIN_APPROVAL_TTL {
+            panic_with_error!(&env, VaultError::ApprovalTtlTooLow);
+        }
+        if ttl > MAX_APPROVAL_TTL {
+            panic_with_error!(&env, VaultError::ApprovalTtlTooHigh);
+        }
+
+        env.storage().instance().set(&DataKey::ApprovalTtl, &ttl);
+    }
+
+    /// Returns the configured Blend approval TTL, or the default if unset.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment.
+    ///
+    /// # Returns
+    /// Number of ledgers added to the current ledger for Blend token approvals.
+    pub fn get_approval_ttl(env: Env) -> u32 {
+        Self::require_initialized(&env);
+        Self::get_approval_ttl_internal(&env)
+    }
+
     // ==========================================================================
     // ADMINISTRATIVE - CONFIGURATION
     // ==========================================================================
@@ -3510,6 +3563,14 @@ impl NeuroWealthVault {
             .unwrap_or(DEFAULT_MAX_DEPOSIT)
     }
 
+    #[inline]
+    fn get_approval_ttl_internal(env: &Env) -> u32 {
+        env.storage()
+            .instance()
+            .get(&DataKey::ApprovalTtl)
+            .unwrap_or(DEFAULT_APPROVAL_TTL)
+    }
+
     /// Validates that a deposit is within the user's cap.
     ///
     /// The cap is enforced against the user's current **asset value** (shares ×
@@ -3749,7 +3810,7 @@ impl NeuroWealthVault {
 
         let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
         let vault_address = env.current_contract_address();
-        let approval_ledger = env.ledger().sequence() + 100_000;
+        let approval_ledger = env.ledger().sequence() + Self::get_approval_ttl_internal(env);
 
         // Prepare authorization for token approval and Blend supply
         let approval_args: Vec<Val> = vec![
