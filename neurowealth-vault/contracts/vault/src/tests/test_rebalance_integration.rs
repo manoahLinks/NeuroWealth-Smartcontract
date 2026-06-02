@@ -537,12 +537,18 @@ fn test_integration_rebalance_event_schema_correctness() {
 
     assert_eq!(events[0].protocol, symbol_short!("none"));
     assert_eq!(events[0].expected_apy, 0_i128);
+    assert_eq!(events[0].amount_supplied, 0);
+    assert_eq!(events[0].amount_withdrawn, 0);
 
     assert_eq!(events[1].protocol, symbol_short!("blend"));
     assert_eq!(events[1].expected_apy, 850_i128);
+    assert_eq!(events[1].amount_supplied, 10_000_000_i128);
+    assert_eq!(events[1].amount_withdrawn, 0);
 
     assert_eq!(events[2].protocol, symbol_short!("none"));
     assert_eq!(events[2].expected_apy, 0_i128);
+    assert_eq!(events[2].amount_supplied, 0);
+    assert_eq!(events[2].amount_withdrawn, 10_000_000_i128);
 }
 
 /// Validates that a Blend supply emits BlendSupplyEvent with the correct

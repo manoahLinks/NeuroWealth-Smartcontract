@@ -210,6 +210,8 @@ fn test_event_schema_rebalance_events() {
     assert_eq!(rebalance_event.status, symbol_short!("noop"));
     assert_eq!(rebalance_event.amount_attempted, 0);
     assert_eq!(rebalance_event.amount_moved, 0);
+    assert_eq!(rebalance_event.amount_supplied, 0);
+    assert_eq!(rebalance_event.amount_withdrawn, 0);
 }
 
 /// ProtocolChangedEvent is emitted when CurrentProtocol updates (#149).

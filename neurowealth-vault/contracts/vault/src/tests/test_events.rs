@@ -454,6 +454,8 @@ fn test_rebalance_emits_rebalance_event_with_correct_payload() {
         "Event amount_attempted should be 0"
     );
     assert_eq!(event.amount_moved, 0, "Event amount_moved should be 0");
+    assert_eq!(event.amount_supplied, 0, "Event amount_supplied should be 0");
+    assert_eq!(event.amount_withdrawn, 0, "Event amount_withdrawn should be 0");
 }
 
 #[test]
@@ -499,6 +501,11 @@ fn test_rebalance_with_blend_emits_correct_event() {
         event.amount_moved, 10_000_000_i128,
         "Event amount_moved should match supplied balance"
     );
+    assert_eq!(
+        event.amount_supplied, 10_000_000_i128,
+        "Event amount_supplied should match supplied balance"
+    );
+    assert_eq!(event.amount_withdrawn, 0, "Event amount_withdrawn should be 0");
 }
 
 #[test]
@@ -544,6 +551,11 @@ fn test_rebalance_with_blend_partial_fill_emits_correct_event() {
         event.amount_moved, 3_000_000_i128,
         "Event amount_moved should be 3M"
     );
+    assert_eq!(
+        event.amount_supplied, 3_000_000_i128,
+        "Event amount_supplied should be 3M"
+    );
+    assert_eq!(event.amount_withdrawn, 0, "Event amount_withdrawn should be 0");
 }
 
 #[test]
@@ -586,6 +598,8 @@ fn test_rebalance_with_blend_failed_fill_emits_correct_event() {
         "Event amount_attempted should be 10M"
     );
     assert_eq!(event.amount_moved, 0, "Event amount_moved should be 0");
+    assert_eq!(event.amount_supplied, 0, "Event amount_supplied should be 0");
+    assert_eq!(event.amount_withdrawn, 0, "Event amount_withdrawn should be 0");
 }
 
 #[test]

@@ -105,11 +105,15 @@ pub struct RebalanceEvent {
     pub status: Symbol,           // "success", "failed", "partial", or "noop"
     pub amount_attempted: i128,   // Amount attempted to be moved
     pub amount_moved: i128,       // Amount actually moved
+    pub amount_supplied: i128,    // Amount supplied into the target protocol
+    pub amount_withdrawn: i128,   // Amount withdrawn from the prior protocol
 }
 ```
 
 **Agent / indexer notes:**
 - `"noop"`: target allocation already satisfied; no supply/withdraw leg ran (e.g. rebalance to Blend with zero idle USDC while already deployed).
+- `amount_supplied` captures the deployment size when moving into Blend.
+- `amount_withdrawn` captures the exit size when leaving Blend.
 - Prefer `ProtocolChangedEvent` for authoritative protocol transitions (see below).
 
 **Usage:**

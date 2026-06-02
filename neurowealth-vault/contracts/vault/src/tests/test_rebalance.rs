@@ -480,6 +480,14 @@ fn test_rebalance_blend_to_none_withdraws_all_and_updates_state_and_events() {
         rebalance_event.expected_apy, none_apy,
         "rebalance event APY should match provided value"
     );
+    assert_eq!(
+        rebalance_event.amount_supplied, 0,
+        "rebalance event should not report supplied amount on none transition"
+    );
+    assert_eq!(
+        rebalance_event.amount_withdrawn, deposit_amount,
+        "rebalance event should report the withdrawn amount on none transition"
+    );
 }
 
 /// When a protocol exit is incomplete (funds remain in blend after withdrawal),

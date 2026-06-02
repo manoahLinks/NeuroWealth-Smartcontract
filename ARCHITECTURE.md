@@ -167,9 +167,11 @@ struct WithdrawEvent {
 pub struct RebalanceEvent {
     pub protocol: Symbol,           // Target protocol ("blend", "none")
     pub expected_apy: i128,         // Expected APY in basis points (850 = 8.5%)
-    pub status: Symbol,             // Status ("success", "failed", "partial")
+    pub status: Symbol,             // Status ("success", "failed", "partial", "noop")
     pub amount_attempted: i128,     // Amount attempted to be moved
     pub amount_moved: i128,          // Amount actually moved
+    pub amount_supplied: i128,      // Amount supplied into the target protocol
+    pub amount_withdrawn: i128,     // Amount withdrawn from the prior protocol
 }
 ```
 
