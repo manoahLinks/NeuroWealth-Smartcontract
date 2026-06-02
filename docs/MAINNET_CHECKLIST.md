@@ -1,0 +1,210 @@
+# NeuroWealth Mainnet Deployment Checklist
+
+This document outlines the mandatory formal verification steps, configuration parameters, and emergency readiness checks that must be successfully executed before and during the deployment of the `NeuroWealthVault` smart contract to the Stellar Mainnet.
+
+---
+
+## 📋 Table of Contents
+1. [Key Management Setup (Separate Owner & Agent Keys)](#1-key-management-setup-separate-owner--agent-keys)
+2. [Initialization Parameters & Deployment Verification](#2-initialization-parameters--deployment-verification)
+3. [Administrative Caps & Deposit Limits Configuration](#3-administrative-caps--deposit-limits-configuration)
+4. [Blend Pool Integration & Address Verification](#4-blend-pool-integration--address-verification)
+5. [Emergency Procedures & Pause Drill Runbook](#5-emergency-procedures--pause-drill-runbook)
+6. [Upgrade & Governance Multisig Plan](#6-upgrade--governance-multisig-plan)
+7. [Third-Party Security Audit & Formal Sign-off](#7-third-party-security-audit--formal-sign-off)
+
+---
+
+## 1. Key Management Setup (Separate Owner & Agent Keys)
+
+To uphold the principle of least privilege and prevent single points of failure, **the Owner and Agent keys must be completely separate and generated independently**.
+
+### 🔍 Security Context
+* **Owner (Cold/Multisig):** Holds sensitive administrative capabilities like contract pausing, unpausing, TVL/cap changes, and contract upgrades. This key represents a high-value target and should be kept securely offline (e.g., hardware wallet or multi-signature account setup).
+* **AI Agent (Hot):** Used by the automated backend system to submit frequent rebalancing signals and assets updates (`rebalance` and `update_total_assets`). Since it lives in a hot environment (server memory), it faces a higher compromise risk. 
+* **The Risk:** If the Owner and Agent keys are the same, a compromise of the AI agent backend would immediately compromise the ownership and control of the entire contract, enabling an attacker to upgrade the contract or block users from withdrawing.
+
+### 📝 Actionable Checklist
+- [ ] **Generate Independent Keypairs:** Ensure that the Owner address ($G_{owner}$) and Agent address ($G_{agent}$) are completely separate and do not share any key material.
+- [ ] **Establish Key Storage Environments:**
+  - Owner private key: Saved in a secure offline HSM, multi-sig hardware wallet, or Stellar Multisig account.
+  - Agent private key: Stored in a secure environment variables vault (e.g., AWS Secrets Manager, Vault, Supabase Vault) with restricted read access.
+- [ ] **Pre-Launch Address Verification:**
+  - Query testnet/mainnet deploy keys:
+    ```bash
+    owner_addr=$(stellar contract invoke --id $VAULT_CONTRACT_ID --network mainnet -- get_owner)
+    agent_addr=$(stellar contract invoke --id $VAULT_CONTRACT_ID --network mainnet -- get_agent)
+    ```
+  - Verify that `$owner_addr` != `$agent_addr`.
+
+---
+
+## 2. Initialization Parameters & Deployment Verification
+
+Initialization of the `NeuroWealthVault` uses a cryptographic commitment to protect against front-running. The deployer key must immediately call `initialize` after deployment.
+
+### 🔍 Security Context
+* The contract verifies that the `deployer` address combined with the deployed `salt` cryptographically reproduces the contract address and requires deployer's authentication (`deployer.require_auth()`).
+* After successful initialization, the temporary deployer key has no administrative powers.
+
+### 📝 Actionable Checklist
+- [ ] **Deployer Key Separation:** Generate a clean, single-use `deployer` keypair. Fund it with enough native XLM to cover deployment fees.
+- [ ] **Parameter Configuration Verification:** Double-check the mainnet initialization arguments before submitting the transaction:
+  * `--deployer`: Address of the temporary deployer key.
+  * `--owner`: Verified cold/multisig owner address.
+  * `--agent`: Verified AI agent address.
+  * `--usdc_token`: Official Stellar Mainnet USDC Token address (`GBBD67VQMKA676776SGXN6776...` - verify on Stellar Expert).
+  * `--salt`: A securely generated 32-byte hash.
+- [ ] **Execute and Discard Deployer Key:**
+  ```bash
+  stellar contract invoke \
+    --id $VAULT_CONTRACT_ID \
+    --source deployer \
+    --network mainnet \
+    -- \
+    initialize \
+    --deployer $DEPLOYER_ADDRESS \
+    --owner $OWNER_ADDRESS \
+    --agent $AGENT_ADDRESS \
+    --usdc_token $USDC_TOKEN_ADDRESS \
+    --salt $SALT
+  ```
+- [ ] **Post-Init Read Verification:**
+  * Run `get_owner` to confirm it returns `$OWNER_ADDRESS`.
+  * Run `get_agent` to confirm it returns `$AGENT_ADDRESS`.
+  * Run `get_usdc_token` to confirm it returns `$USDC_TOKEN_ADDRESS`.
+- [ ] **Discard Deployer Key:** Erase/discard the temporary deployer key. It should never be reused.
+
+---
+
+## 3. Administrative Caps & Deposit Limits Configuration
+
+To limit financial risk and systemic exposure during the initial stages of launch, safety caps must be configured.
+
+### 🔍 Security Context
+* **TVL Cap:** Prevents the vault from accepting more than a specific aggregate deposit, limiting the overall capital at risk.
+* **User Deposit Cap:** Limits exposure per single user, preventing whales from dominating the pool and mitigating risks of heavy individual exposure.
+* **Deposit Limits (Min/Max):** Enforces transaction thresholds (minimum of 1 USDC to protect against dust attacks and first-depositor inflation attacks).
+
+### 📝 Actionable Checklist
+- [ ] **Initial TVL Cap Setup:** Determine the conservative launch phase TVL cap (e.g., $100,000 USD represented as `100000000000` base units - 7 decimals).
+- [ ] **Initial User Deposit Cap Setup:** Determine the initial limit per user (e.g., $5,000 USD represented as `5000000000` base units).
+- [ ] **Enforce Caps:** Call `set_caps` via the Owner key:
+  ```bash
+  stellar contract invoke \
+    --id $VAULT_CONTRACT_ID \
+    --source owner \
+    --network mainnet \
+    -- \
+    set_caps \
+    --user_deposit_cap 5000000000 \
+    --tvl_cap 100000000000
+  ```
+- [ ] **Set Transaction Limits:** Call `set_deposit_limits` (e.g., min 1 USDC, max 5,000 USDC):
+  ```bash
+  stellar contract invoke \
+    --id $VAULT_CONTRACT_ID \
+    --source owner \
+    --network mainnet \
+    -- \
+    set_deposit_limits \
+    --min 1000000 \
+    --max 5000000000
+  ```
+- [ ] **Verify Settings:** Query getters `get_tvl_cap`, `get_user_deposit_cap`, `get_min_deposit`, and `get_max_deposit` to verify correctness.
+
+---
+
+## 4. Blend Pool Integration & Address Verification
+
+The NeuroWealth AI agent deploys assets into Blend lending pools. Registering the correct, verified mainnet contract address for Blend is critical.
+
+### 🔍 Security Context
+* Deploying to an incorrect or malicious pool address can lead to instant loss of principal funds.
+* While the contract's `set_blend_pool` method performs interface probing by calling `balance()` to confirm the contract conforms to the expected Blend pool structure, this does not guarantee the address belongs to the genuine Blend protocol.
+
+### 📝 Actionable Checklist
+- [ ] **Retrieve Official Blend Registries:** Match the Blend mainnet pool address against:
+  * Official Blend Protocol documentation.
+  * Verified GitHub repository resources or Blend UI configurations.
+  * The verified on-chain deployment logs on a block explorer (Stellar Expert).
+- [ ] **Perform Interface/State Verification:** Call the pool's read methods directly on the mainnet RPC to check pool parameters.
+- [ ] **Register Verified Blend Pool:** Call `set_blend_pool` using the Owner key:
+  ```bash
+  stellar contract invoke \
+    --id $VAULT_CONTRACT_ID \
+    --source owner \
+    --network mainnet \
+    -- \
+    set_blend_pool \
+    --owner $OWNER_ADDRESS \
+    --pool_address $VERIFIED_BLEND_POOL_ADDRESS
+  ```
+- [ ] **Read Verification:** Query `get_blend_pool` on the vault to confirm the registered address matches the verified Blend pool address.
+
+---
+
+## 5. Emergency Procedures & Pause Drill Runbook
+
+Before deploying to Mainnet, the team must run an on-chain Pause Drill on Testnet to guarantee emergency mechanisms function as intended and operators are trained in execution.
+
+### 🔍 Security Context
+* The `pause` function blocks all deposits, withdrawals, and rebalances during an active hack, protocol compromise, or market emergency.
+* Operators must be familiar with the latency, transaction structure, and consequences of pausing/unpausing the contract.
+
+### 📝 Execution Plan (Pause Drill Runbook)
+1. **Trigger Emergency Pause:** Owner invokes `pause` on testnet.
+   ```bash
+   stellar contract invoke --id $TESTNET_VAULT_CONTRACT_ID --source owner --network testnet -- pause --owner $OWNER_ADDRESS
+   ```
+2. **Verify State Updates:** Confirm `is_paused()` returns `true`.
+3. **Verify Security Invariants (Deposits):** Attempt a test deposit.
+   * *Expected Result:* The transaction MUST fail and revert with `VaultError::Paused` (Error Code `35`).
+4. **Verify Security Invariants (Withdrawals):** Attempt a test withdrawal.
+   * *Expected Result:* The transaction MUST fail and revert with `VaultError::Paused` (Error Code `35`).
+5. **Verify Security Invariants (Rebalances):** Attempt an AI agent rebalance trigger.
+   * *Expected Result:* The transaction MUST fail and revert with `VaultError::Paused` (Error Code `35`).
+6. **Trigger Resume (Unpause):** Owner invokes `unpause`.
+   ```bash
+   stellar contract invoke --id $TESTNET_VAULT_CONTRACT_ID --source owner --network testnet -- unpause --owner $OWNER_ADDRESS
+   ```
+7. **Verify Resumed Operation:** Verify that `is_paused()` returns `false`, and normal deposits, withdrawals, and rebalances execute successfully.
+- [ ] **Testnet Drill Completed successfully:** Sign off on the drill.
+
+---
+
+## 6. Upgrade & Governance Multisig Plan
+
+The Owner key holds upgrade privileges. To secure the contract against single-key compromise or loss, the owner account should be configured with multi-signature security.
+
+### 🔍 Security Context
+* Soroban allows upgrading contract code via `upgrade()`. An attacker possessing the owner key could upload a malicious WASM binary to hijack user funds.
+* Stellar natively supports multi-signature operations directly at the account level through account signer thresholds and weights.
+
+### 📝 Actionable Checklist
+- [ ] **Configure Owner Multisig Account:** Configure the mainnet Owner address with multiple signers (e.g., 2-of-3 or 3-of-5 setup).
+  * **Threshold Settings:**
+    * Low threshold (e.g., 1): For triggering simple operations or `pause()` (allows fast emergency response with a single hot trigger key).
+    * Medium threshold (e.g., 2 or 3): For configuring caps, setting Blend pools, and `unpause()`.
+    * High threshold (e.g., 3): For calling `upgrade()` (requires multi-party consensus to push new code).
+- [ ] **Document Signer Distribution:** Ensure keys are distributed securely across key parties using hardware wallets (e.g., Ledger).
+- [ ] **Upgrade Verification Procedure:** Ensure any future WASM upgrades are:
+  * Built inside a deterministic environment (e.g., Docker container with exact Rust toolchain versions).
+  * Checked against WASM size limits using standard optimization tools (`wasm-opt -Oz`).
+  * Signatures collected offline from all co-signers before broadcast.
+
+---
+
+## 7. Third-Party Security Audit & Formal Sign-off
+
+No smart contract should be deployed on-chain without an independent security audit and formal sign-off.
+
+### 📝 Actionable Checklist
+- [ ] **Run Pre-Audit Scans & Tests:** Confirm all unit tests pass locally:
+  * Run `cargo test` and verify 100% success rate on comprehensive tests.
+- [ ] **Complete Third-Party Professional Audit:**
+  * Secure a professional smart contract auditing firm (e.g., CertiK, Zellic, OpenZeppelin, Halborn).
+  * Resolve and fix any identified vulnerabilities (High, Medium, Low, Informational).
+  * Receive final audit sign-off documentation.
+- [ ] **Verify Findings In Codebase:** Verify that critical fixes (such as `withdraw_all()` balance protection, and `update_total_assets` balance checks) are compile-ready and active.
+- [ ] **Final Sign-Off:** Gather signatures from the lead developers, security auditors, and product leads before deploying the finalized bytecode.

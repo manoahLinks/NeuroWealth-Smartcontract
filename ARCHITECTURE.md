@@ -26,6 +26,7 @@ Instance storage is used for contract-wide configuration that is read frequently
 | `PendingOwner` | Address | Pending owner for two-step transfer |
 | `TvLCap` | i128 | Maximum total value locked |
 | `UserDepositCap` | i128 | Maximum deposit per user |
+| `BlendApprovalTtl` | u32 | Ledger TTL used for Blend approvals |
 | `MinDeposit` | i128 | Minimum per-transaction deposit |
 | `MaxDeposit` | i128 | Maximum per-transaction deposit |
 | `Version` | u32 | Contract version for upgrade tracking |
@@ -89,6 +90,7 @@ pub enum DataKey {
     PendingOwner,         // pending owner for two-step transfer
     TvLCap,               // maximum TVL
     UserDepositCap,       // per-user deposit limit
+    BlendApprovalTtl,     // Blend approval lifetime
     MinDeposit,           // minimum transaction amount
     MaxDeposit,           // maximum transaction amount
     Version,              // contract version
@@ -312,7 +314,7 @@ When upgrading the contract, the following storage keys must be preserved:
 - `Shares(Address)` and `Balance(Address)`
 - `TotalDeposits`, `TotalShares`, `TotalAssets`
 - `Agent`, `UsdcToken`, `Owner`, `Paused`
-- `TvLCap`, `UserDepositCap`, `MinDeposit`, `MaxDeposit`
+- `TvLCap`, `UserDepositCap`, `BlendApprovalTtl`, `MinDeposit`, `MaxDeposit`
 - `BlendPool`, `CurrentProtocol`
 - `Version` (incremented)
 

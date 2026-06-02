@@ -1,0 +1,137 @@
+name: Contract Spec Generation & Validation
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'neurowealth-vault/contracts/vault/src/**'
+      - 'scripts/generate-spec.py'
+      - 'scripts/validate-spec.py'
+      - '.github/workflows/contract-spec.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'neurowealth-vault/contracts/vault/src/**'
+      - 'contract-spec.json'
+      - 'scripts/generate-spec.py'
+      - 'scripts/validate-spec.py'
+  workflow_dispatch:
+
+jobs:
+  generate-and-validate-spec:
+    name: Generate & Validate Contract Spec
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: 🔧 Generate contract specification
+        run: |
+          echo "Generating contract specification from Soroban contract..."
+          python3 scripts/generate-spec.py
+      
+      - name: ✅ Validate contract specification
+        run: |
+          echo "Validating specification against contract implementation..."
+          python3 scripts/validate-spec.py
+      
+      - name: 📊 Check spec completeness
+        run: |
+          echo "Checking specification completeness..."
+          python3 << 'EOF'
+          import json
+          
+          with open('contract-spec.json') as f:
+              spec = json.load(f)
+          
+          functions = spec.get('functions', [])
+          events = spec.get('events', [])
+          errors = spec.get('errors', {})
+          
+          print(f"📋 Functions: {len(functions)}")
+          print(f"📢 Events: {len(events)}")
+          print(f"❌ Error codes: {len(errors)}")
+          
+          # Check for documented functions
+          state_changing = [f for f in functions if f.get('state_changing')]
+          read_only = [f for f in functions if not f.get('state_changing')]
+          
+          print(f"   ├─ State-changing: {len(state_changing)}")
+          print(f"   └─ Query functions: {len(read_only)}")
+          
+          # Check for categories
+          categories = set(f.get('category', 'uncategorized') for f in functions)
+          print(f"📂 Categories: {', '.join(sorted(categories))}")
+          
+          # Summary
+          total_items = len(functions) + len(events)
+          documented_items = sum(1 for f in functions if 'description' in f) + \
+                            sum(1 for e in events if 'description' in e)
+          
+          coverage = (documented_items / total_items * 100) if total_items > 0 else 0
+          print(f"\n📈 Documentation coverage: {coverage:.1f}%")
+          EOF
+      
+      - name: 📦 Upload spec as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: contract-spec
+          path: contract-spec.json
+          retention-days: 30
+      
+      - name: 💾 Commit spec if changed
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
+          if git diff --quiet contract-spec.json; then
+            echo "✅ Spec unchanged"
+          else
+            echo "📝 Spec updated, committing changes..."
+            git add contract-spec.json
+            git commit -m "chore: update contract specification [skip ci]"
+            git push
+          fi
+      
+      - name: 📋 Comment PR with spec summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const spec = JSON.parse(fs.readFileSync('contract-spec.json', 'utf8'));
+            
+            const functions = spec.functions?.length || 0;
+            const events = spec.events?.length || 0;
+            const errors = Object.keys(spec.errors || {}).length;
+            
+            const body = `## 📋 Contract Specification Summary
+
+            | Metric | Count |
+            |--------|-------|
+            | Functions | ${functions} |
+            | Events | ${events} |
+            | Error Types | ${errors} |
+            | Spec Version | ${spec.version} |
+            
+            ✅ Spec generation and validation completed successfully!
+            
+            [Download full spec](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

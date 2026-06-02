@@ -2,7 +2,11 @@
 
 use super::utils::*;
 use crate::{BlendWithdrawEvent, RebalanceEvent, RebalanceFailedEvent};
-use soroban_sdk::{symbol_short, testutils::Address as _, Address, Env, TryFromVal};
+use soroban_sdk::{
+    symbol_short,
+    testutils::{Address as _, Ledger as _},
+    Address, Env, TryFromVal,
+};
 
 #[test]
 fn test_agent_can_rebalance_with_custom_protocol() {
@@ -21,6 +25,54 @@ fn test_agent_can_rebalance_with_custom_protocol() {
 
     // Should succeed with mock_all_auths (require_is_agent passes)
     client.rebalance(&protocol, &expected_apy, &0_i128);
+}
+
+#[test]
+fn test_owner_can_configure_blend_approval_ttl() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, owner, _usdc_token) = setup_vault_with_token(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+
+    assert_eq!(client.get_blend_approval_ttl(), 100_000_u32);
+
+    client.set_blend_approval_ttl(&owner, &42_u32);
+
+    assert_eq!(client.get_blend_approval_ttl(), 42_u32);
+}
+
+#[test]
+fn test_blend_approval_expires_at_next_ledger_after_boundary() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _agent, owner, usdc_token) = setup_vault_with_token(&env);
+    let client = NeuroWealthVaultClient::new(&env, &contract_id);
+    let token_client = TestTokenClient::new(&env, &usdc_token);
+
+    client.set_blend_approval_ttl(&owner, &0_u32);
+
+    let from = Address::generate(&env);
+    let spender = Address::generate(&env);
+    let amount = 1_234_i128;
+    let approval_ledger = env.ledger().sequence();
+
+    token_client.approve(&from, &spender, &amount, &approval_ledger);
+    assert_eq!(
+        token_client.allowance(&from, &spender),
+        amount,
+        "Allowance should remain valid on the exact approval ledger"
+    );
+
+    env.ledger()
+        .set_sequence_number(approval_ledger.saturating_add(1));
+
+    assert_eq!(
+        token_client.allowance(&from, &spender),
+        0_i128,
+        "Allowance should expire once the ledger advances past the approval ledger"
+    );
 }
 
 #[test]

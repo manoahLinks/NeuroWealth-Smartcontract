@@ -187,9 +187,11 @@ The contract owner can upgrade the contract code while preserving storage state.
 5. **TVL Caps**: Limits total exposure
 6. **Pausable**: Emergency stop functionality
 
-## Audit Checklist
+## Audit & Mainnet Deployment Checklist
 
-Before any mainnet deployment, ensure:
+Before any mainnet deployment, you must refer to and complete the formal [Mainnet Deployment Checklist](docs/MAINNET_CHECKLIST.md).
+
+Additionally, ensure:
 
 - [ ] All functions have documented panic conditions
 - [ ] All state changes emit events
