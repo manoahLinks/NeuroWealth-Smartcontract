@@ -45,7 +45,7 @@
 //! Deposit Flow:
 //! User → [USDC Token] → [Vault Contract] → [AI Agent monitors]
 //!                      ↓
-//!              Balance recorded per user
+//!              Shares recorded per user
 //!              DepositEvent emitted
 //!
 //! Rebalance Flow (AI Agent):
@@ -56,7 +56,7 @@
 //! Withdraw Flow:
 //! User → [Vault.withdraw()] → [Vault Contract] → [USDC Token] → User
 //!         ↓
-//! Balance updated
+//! Shares burned
 //! WithdrawEvent emitted
 //! ```
 //!
@@ -76,7 +76,7 @@
 //! - `LastRebalanceLedger`: Ledger number of the most recent successful rebalance call (Issue #59)
 //!
 //! ### Persistent Storage (Per-User, Cheaper)
-//! - `Balance(user)`: USDC balance for each user address
+//! - `Shares(user)`: vault shares owned by each user address
 //!
 //! ## Event Design Philosophy
 //!
@@ -229,9 +229,11 @@ pub enum VaultError {
 #[allow(missing_docs)]
 #[contracttype]
 pub enum DataKey {
-    /// User's principal USDC balance (key: user Address)
-    /// Stored in persistent storage for efficient per-user access.
-    /// This tracks deposited principal only and does NOT include yield.
+    /// Legacy user's principal USDC balance (key: user Address).
+    ///
+    /// Deprecated: retained only to preserve the serialized `DataKey` layout
+    /// across upgrades. New accounting must not read or write this key; user
+    /// balances are derived from `Shares(user)` and the current exchange rate.
     Balance(Address),
     /// User's share balance (key: user Address).
     /// Represents proportional ownership of the vault's total assets.
@@ -608,6 +610,11 @@ pub struct RebalanceFailedEvent {
 #[allow(missing_docs)]
 #[contracttype]
 pub struct UserInfo {
+    /// Deprecated compatibility field.
+    ///
+    /// This value is now the user's share-derived asset balance, not a separate
+    /// stored principal record. Use `shares` plus share conversion helpers when
+    /// exact accounting provenance matters.
     pub principal: i128,
     pub shares: i128,
 }
@@ -980,19 +987,6 @@ impl NeuroWealthVault {
         let token_client = token::Client::new(&env, &usdc_token);
         token_client.transfer(&user, &env.current_contract_address(), &amount);
 
-        // Update per-user principal balance (does not include yield)
-        let current_balance: i128 = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Balance(user.clone()))
-            .unwrap_or(0_i128);
-        env.storage().persistent().set(
-            &DataKey::Balance(user.clone()),
-            &(current_balance
-                .checked_add(amount)
-                .expect("vault: balance overflow")),
-        );
-
         let total: i128 = env
             .storage()
             .instance()
@@ -1214,35 +1208,7 @@ impl NeuroWealthVault {
                 .expect("vault: total assets underflow")),
         );
 
-        // Update principal tracking: reduce user's principal balance and total deposits,
-        // but never below zero. Yield component does not affect principal accounting.
-        let principal_balance: i128 = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Balance(user.clone()))
-            .unwrap_or(0_i128);
-        if principal_balance > 0 {
-            let principal_repaid = min(principal_balance, usdc_to_return);
-
-            env.storage().persistent().set(
-                &DataKey::Balance(user.clone()),
-                &(principal_balance
-                    .checked_sub(principal_repaid)
-                    .expect("vault: principal underflow")),
-            );
-
-            let total_deposits: i128 = env
-                .storage()
-                .instance()
-                .get(&DataKey::TotalDeposits)
-                .unwrap_or(0_i128);
-            env.storage().instance().set(
-                &DataKey::TotalDeposits,
-                &(total_deposits
-                    .checked_sub(principal_repaid)
-                    .expect("vault: total deposits underflow")),
-            );
-        }
+        Self::reduce_total_deposits_on_withdraw(&env, usdc_to_return);
 
         token_client.transfer(&env.current_contract_address(), &user, &usdc_to_return);
 
@@ -1339,7 +1305,7 @@ impl NeuroWealthVault {
                 let needed = entitled_amount
                     .checked_sub(vault_balance)
                     .expect("vault: math error");
-                let _ = Self::withdraw_from_blend(&env, needed);
+                let _ = Self::withdraw_from_blend(&env, needed, 0);
 
                 // RECONCILIATION: Check actual available USDC after potential Blend withdrawal
                 let available_usdc = token_client.balance(&env.current_contract_address());
@@ -1382,34 +1348,7 @@ impl NeuroWealthVault {
                 .expect("vault: total assets underflow")),
         );
 
-        // Update principal tracking
-        let principal_balance: i128 = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Balance(user.clone()))
-            .unwrap_or(0_i128);
-        if principal_balance > 0 {
-            let principal_repaid = core::cmp::min(principal_balance, usdc_to_return);
-
-            env.storage().persistent().set(
-                &DataKey::Balance(user.clone()),
-                &(principal_balance
-                    .checked_sub(principal_repaid)
-                    .expect("vault: principal underflow")),
-            );
-
-            let total_deposits: i128 = env
-                .storage()
-                .instance()
-                .get(&DataKey::TotalDeposits)
-                .unwrap_or(0_i128);
-            env.storage().instance().set(
-                &DataKey::TotalDeposits,
-                &(total_deposits
-                    .checked_sub(principal_repaid)
-                    .expect("vault: total deposits underflow")),
-            );
-        }
+        Self::reduce_total_deposits_on_withdraw(&env, usdc_to_return);
 
         // Transfer USDC to user
         let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
