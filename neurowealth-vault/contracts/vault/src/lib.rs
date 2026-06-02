@@ -3565,6 +3565,7 @@ impl NeuroWealthVault {
 
     #[inline]
     fn get_approval_ttl_internal(env: &Env) -> u32 {
+        let _ = env.ledger().sequence();
         env.storage()
             .instance()
             .get(&DataKey::ApprovalTtl)
