@@ -58,14 +58,12 @@ mod token {
                 .get(&TokenDataKey::Balance(to.clone()))
                 .unwrap_or(0);
 
-            env.storage().persistent().set(
-                &TokenDataKey::Balance(from),
-                &(from_balance - amount),
-            );
-            env.storage().persistent().set(
-                &TokenDataKey::Balance(to),
-                &(to_balance + amount),
-            );
+            env.storage()
+                .persistent()
+                .set(&TokenDataKey::Balance(from), &(from_balance - amount));
+            env.storage()
+                .persistent()
+                .set(&TokenDataKey::Balance(to), &(to_balance + amount));
         }
 
         pub fn balance(env: Env, owner: Address) -> i128 {
@@ -155,7 +153,8 @@ fuzz_target!(|data: &[u8]| {
             continue;
         }
         let op = chunk[0] % 2;
-        let raw = u16::from(chunk.get(1).copied().unwrap_or(0)) | (u16::from(chunk.get(2).copied().unwrap_or(0)) << 8);
+        let raw = u16::from(chunk.get(1).copied().unwrap_or(0))
+            | (u16::from(chunk.get(2).copied().unwrap_or(0)) << 8);
         let amount = i128::from(raw % 20_000) * MIN_DEPOSIT + MIN_DEPOSIT;
 
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -190,16 +189,9 @@ fuzz_target!(|data: &[u8]| {
                 let msg = payload
                     .downcast_ref::<&str>()
                     .copied()
-                    .or_else(|| {
-                        payload
-                            .downcast_ref::<String>()
-                            .map(|s| s.as_str())
-                    })
+                    .or_else(|| payload.downcast_ref::<String>().map(|s| s.as_str()))
                     .unwrap_or("unknown panic");
-                assert!(
-                    is_allowed_panic(msg),
-                    "unexpected panic at step {i}: {msg}"
-                );
+                assert!(is_allowed_panic(msg), "unexpected panic at step {i}: {msg}");
             }
         }
     }

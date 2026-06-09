@@ -123,6 +123,13 @@ pub mod token {
                 .unwrap_or(0)
         }
 
+        pub fn allowance_expiration(env: Env, from: Address, spender: Address) -> u32 {
+            env.storage()
+                .persistent()
+                .get(&TokenDataKey::AllowanceExpiration(from, spender))
+                .unwrap_or(0)
+        }
+
         pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
             spender.require_auth();
             assert!(amount > 0, "amount must be positive");
