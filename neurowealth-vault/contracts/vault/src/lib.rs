@@ -1074,7 +1074,7 @@ Tests verify event emission for each function
     /// # Events
     /// None
     pub fn get_usdc_token(env: Env) -> Address {
-        env.storage::instance()
+        env.storage().instance()
             .get(&DataKey::UsdcToken)
             .unwrap()
     }
