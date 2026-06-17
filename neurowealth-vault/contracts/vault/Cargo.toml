@@ -10,6 +10,8 @@ crate-type = ["cdylib", "rlib"]
 default = []
 # Enable `cargo test -p neurowealth-vault --features blend-devnet`
 blend-devnet = []
+# Enable `cargo test -p neurowealth-vault --features dex-devnet`
+dex-devnet = []
 
 [dependencies]
 soroban-sdk = { workspace = true }

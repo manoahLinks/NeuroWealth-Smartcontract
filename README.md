@@ -139,7 +139,9 @@ Key Functions
 | `deposit` | Any verified user | Deposit USDC into the vault |
 | `withdraw` | User (their own funds) | Withdraw USDC back to wallet |
 | `withdraw_all` | User (their own funds) | Withdraw all USDC by burning all shares |
-| `rebalance` | AI Agent only | Move funds between yield strategies (`protocol`, `expected_apy`, `min_out`; supported: `blend`, `none`) |
+| `rebalance` | AI Agent only | Move funds between yield strategies (`protocol`, `expected_apy`, `min_out`; supported: `blend`, `dex`, `none`) |
+| `set_blend_pool` | Owner only | Configure the Blend lending pool address |
+| `set_dex_pool` | Owner only | Configure the DEX liquidity pool address |
 | `get_balance` | Anyone | Read a user's current balance |
 | `get_total_deposits` | Anyone | Read total vault TVL |
 | `get_exchange_rate` | Anyone | Read current exchange rate (assets per share * 10,000,000) |

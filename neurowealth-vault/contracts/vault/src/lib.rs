@@ -221,6 +221,10 @@ pub enum VaultError {
     ApprovalTtlTooLow = 44,
     /// Approval TTL is above the allowed ceiling.
     ApprovalTtlTooHigh = 45,
+    /// DEX liquidity pool is not configured.
+    DexPoolNotConfigured = 46,
+    /// Caller is not allowed to set the DEX pool.
+    OnlyOwnerCanSetDexPool = 47,
 }
 
 // ============================================================================
@@ -303,6 +307,10 @@ pub enum DataKey {
     LastRebalanceLedger,
     /// Number of ledgers added to the current ledger for Blend token approvals.
     ApprovalTtl,
+    /// DEX liquidity pool contract address
+    /// The address of the Stellar DEX liquidity pool contract used by the
+    /// Balanced/Growth strategies for on-chain liquidity provision.
+    DexPool,
 }
 
 // ============================================================================
@@ -614,6 +622,51 @@ pub struct BlendPoolConfiguredEvent {
     pub owner: Address,
 }
 
+/// Emitted when assets are supplied to a DEX liquidity pool.
+///
+/// # Topics
+/// - `SymbolShort("dex_sup")` - Event identifier
+#[allow(missing_docs)]
+#[contracttype]
+pub struct DexSupplyEvent {
+    /// The asset address (USDC)
+    pub asset: Address,
+    /// Actual amount transferred to the DEX pool (may be less than requested due to slippage/limits)
+    pub amount_actual: i128,
+    /// Whether the supply was successful
+    pub success: bool,
+}
+
+/// Emitted when assets are withdrawn from a DEX liquidity pool.
+///
+/// # Topics
+/// - `SymbolShort("dex_wd")` - Event identifier
+#[allow(missing_docs)]
+#[contracttype]
+pub struct DexWithdrawEvent {
+    /// The asset address (USDC)
+    pub asset: Address,
+    /// Actual amount received from the DEX pool (may be less than requested due to liquidity)
+    pub amount_actual: i128,
+    /// Whether the withdrawal succeeded
+    pub success: bool,
+}
+
+/// Emitted when the DEX pool address is configured.
+///
+/// # Topics
+/// - `SymbolShort("dex_cfg")` - Event identifier
+#[allow(missing_docs)]
+#[contracttype]
+pub struct DexPoolConfiguredEvent {
+    /// Previous DEX pool address, or None if it was not configured
+    pub old_pool: Option<Address>,
+    /// Newly configured DEX pool address
+    pub new_pool: Address,
+    /// Owner who triggered the configuration change
+    pub owner: Address,
+}
+
 /// Emitted when a rebalance aborts due to a protocol exit failure.
 ///
 /// Emitted instead of panicking so the failure is observable on-chain without
@@ -709,6 +762,9 @@ pub(crate) const TOPIC_UPGRADED: Symbol = symbol_short!("upgraded");
 pub(crate) const TOPIC_BLEND_SUPPLY: Symbol = symbol_short!("blend_sup");
 pub(crate) const TOPIC_BLEND_WITHDRAW: Symbol = symbol_short!("blend_wd");
 pub(crate) const TOPIC_BLEND_POOL_CONFIGURED: Symbol = symbol_short!("blend_cfg");
+pub(crate) const TOPIC_DEX_SUPPLY: Symbol = symbol_short!("dex_sup");
+pub(crate) const TOPIC_DEX_WITHDRAW: Symbol = symbol_short!("dex_wd");
+pub(crate) const TOPIC_DEX_POOL_CONFIGURED: Symbol = symbol_short!("dex_cfg");
 pub(crate) const TOPIC_PROTOCOL_CHANGED: Symbol = symbol_short!("proto_chg");
 pub(crate) const TOPIC_REBALANCE_FAILED: Symbol = symbol_short!("reb_fail");
 
@@ -817,6 +873,105 @@ impl BlendPoolClient {
     }
 
     /// Gets the balance of assets supplied to the Blend pool.
+    fn get_balance(env: &Env, pool_address: &Address, asset: &Address, user: &Address) -> i128 {
+        use soroban_sdk::{vec, IntoVal, Symbol};
+        let args: Vec<Val> = vec![env, asset.into_val(env), user.into_val(env)];
+        env.invoke_contract::<i128>(pool_address, &Symbol::new(env, "balance"), args)
+    }
+}
+
+// ============================================================================
+// DEX LIQUIDITY POOL CLIENT INTERFACE
+// ============================================================================
+
+/// Helper functions for interacting with a Stellar DEX liquidity pool contract.
+///
+/// The vault provides single-asset (USDC) liquidity to a DEX pool to execute the
+/// Balanced/Growth strategies described in the README. The pool is treated as a
+/// single-asset adapter exposing:
+/// - `add_liquidity(from, asset, amount, min_out)` — supply liquidity after USDC `approve`
+/// - `remove_liquidity(to, asset, amount, min_out)` — withdraw liquidity
+/// - `balance(asset, user)` — the vault's current liquidity position
+///
+/// Actual amounts are derived from the vault's USDC balance delta, mirroring the
+/// Blend integration so partial fills (slippage) are observable on-chain.
+///
+/// See `DEX_INTEGRATION.md` for the full interface research and rationale.
+struct DexPoolClient;
+
+impl DexPoolClient {
+    /// Supplies assets to the DEX liquidity pool via `add_liquidity`.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    /// * `pool_address` - The DEX pool contract address
+    /// * `asset` - The asset token address (USDC)
+    /// * `amount` - Amount of assets to supply
+    /// * `min_out` - Minimum accepted liquidity (forwarded to the pool for slippage protection)
+    /// * `to` - Address providing/owning the liquidity position (vault address)
+    ///
+    /// # Returns
+    /// The amount of assets actually supplied (derived from the vault balance delta).
+    fn supply(
+        env: &Env,
+        pool_address: &Address,
+        asset: &Address,
+        amount: i128,
+        min_out: i128,
+        to: &Address,
+    ) -> i128 {
+        use soroban_sdk::{vec, IntoVal, Symbol};
+
+        let token_client = token::Client::new(env, asset);
+        let vault_address = env.current_contract_address();
+        let balance_before = token_client.balance(&vault_address);
+
+        // add_liquidity(from: Address, asset: Address, amount: i128, min_out: i128)
+        let args: Vec<Val> = vec![
+            env,
+            to.into_val(env),     // from: vault address (liquidity provider)
+            asset.into_val(env),  // asset: USDC token
+            amount.into_val(env), // amount: desired liquidity
+            min_out.into_val(env),
+        ];
+
+        env.invoke_contract::<Val>(pool_address, &Symbol::new(env, "add_liquidity"), args);
+
+        let balance_after = token_client.balance(&vault_address);
+        balance_before.saturating_sub(balance_after)
+    }
+
+    /// Removes assets from the DEX liquidity pool via `remove_liquidity`.
+    fn withdraw(
+        env: &Env,
+        pool_address: &Address,
+        asset: &Address,
+        amount: i128,
+        min_out: i128,
+        to: &Address,
+    ) -> i128 {
+        use soroban_sdk::{vec, IntoVal, Symbol};
+
+        let token_client = token::Client::new(env, asset);
+        let vault_address = env.current_contract_address();
+        let balance_before = token_client.balance(&vault_address);
+
+        // remove_liquidity(to: Address, asset: Address, amount: i128, min_out: i128)
+        let args: Vec<Val> = vec![
+            env,
+            to.into_val(env),     // to: vault address (receives withdrawn assets)
+            asset.into_val(env),  // asset: USDC token
+            amount.into_val(env), // amount: liquidity to remove
+            min_out.into_val(env),
+        ];
+
+        env.invoke_contract::<Val>(pool_address, &Symbol::new(env, "remove_liquidity"), args);
+
+        let balance_after = token_client.balance(&vault_address);
+        balance_after.saturating_sub(balance_before)
+    }
+
+    /// Gets the vault's current liquidity position in the DEX pool.
     fn get_balance(env: &Env, pool_address: &Address, asset: &Address, user: &Address) -> i128 {
         use soroban_sdk::{vec, IntoVal, Symbol};
         let args: Vec<Val> = vec![env, asset.into_val(env), user.into_val(env)];
@@ -1145,22 +1300,23 @@ impl NeuroWealthVault {
         // Initially, we assume we can fulfill the whole request.
         let mut actual_to_return = amount;
 
-        if current_protocol == symbol_short!("blend") {
+        if current_protocol == symbol_short!("blend") || current_protocol == symbol_short!("dex") {
             // Check vault's USDC balance
             let vault_balance = token_client.balance(&env.current_contract_address());
 
-            // If vault doesn't have enough USDC, try to withdraw from Blend
+            // If vault doesn't have enough USDC, try to withdraw from the active protocol
             if vault_balance < amount {
                 // Calculate how much we need to withdraw
                 let needed = amount
                     .checked_sub(vault_balance)
                     .expect("vault: math error");
 
-                // Attempt to withdraw from Blend
+                // Attempt to withdraw from the active protocol (Blend or DEX).
                 // If this returns less than needed, we will reconcile below
-                let _withdrawn = Self::withdraw_from_blend(&env, needed, 0);
+                let _withdrawn =
+                    Self::withdraw_amount_from_protocol(&env, &current_protocol, needed, 0);
 
-                // RECONCILIATION: Check actual available USDC after Blend withdrawal.
+                // RECONCILIATION: Check actual available USDC after the withdrawal.
                 // We cap the withdrawal to what the vault actually has available.
                 let available_usdc = token_client.balance(&env.current_contract_address());
                 actual_to_return = min(amount, available_usdc);
@@ -1324,19 +1480,19 @@ impl NeuroWealthVault {
         let mut usdc_to_return = entitled_amount;
         let mut shares_to_burn = user_shares;
 
-        if current_protocol == symbol_short!("blend") {
+        if current_protocol == symbol_short!("blend") || current_protocol == symbol_short!("dex") {
             // Check vault's USDC balance
             let vault_balance = token_client.balance(&env.current_contract_address());
 
-            // If vault doesn't have enough USDC, try to withdraw from Blend
+            // If vault doesn't have enough USDC, try to withdraw from the active protocol
             if vault_balance < entitled_amount {
-                // Attempt to withdraw from Blend
+                // Attempt to withdraw from the active protocol (Blend or DEX)
                 let needed = entitled_amount
                     .checked_sub(vault_balance)
                     .expect("vault: math error");
-                let _ = Self::withdraw_from_blend(&env, needed, 0);
+                let _ = Self::withdraw_amount_from_protocol(&env, &current_protocol, needed, 0);
 
-                // RECONCILIATION: Check actual available USDC after potential Blend withdrawal
+                // RECONCILIATION: Check actual available USDC after the potential withdrawal
                 let available_usdc = token_client.balance(&env.current_contract_address());
 
                 // If vault has less than entitled, we cap the withdrawal.
@@ -1409,7 +1565,7 @@ impl NeuroWealthVault {
     /// # Arguments
     ///
     /// * `env` - The Soroban environment.
-    /// * `protocol` - The target protocol to move funds to ("blend" or "none").
+    /// * `protocol` - The target protocol to move funds to ("blend", "dex", or "none").
     /// * `expected_apy` - Expected APY in basis points (e.g., 850 = 8.5%).
     /// * `min_out` - Minimum assets expected to remain (slippage protection).
     ///
@@ -1423,8 +1579,8 @@ impl NeuroWealthVault {
     /// - `RebalanceEvent`
     /// - `ProtocolChangedEvent`
     /// - `RebalanceFailedEvent` (if exit fails)
-    /// - `BlendWithdrawEvent`
-    /// - `BlendSupplyEvent`
+    /// - `BlendWithdrawEvent` / `BlendSupplyEvent` (Blend legs)
+    /// - `DexWithdrawEvent` / `DexSupplyEvent` (DEX legs)
     ///
     /// # Errors
     ///
@@ -1439,6 +1595,7 @@ impl NeuroWealthVault {
     /// - If slippage protection (min_out) is triggered.
     /// - If protocol interaction fails.
     /// - If Blend pool is not configured and protocol is "blend"
+    /// - If the DEX pool is not configured and protocol is "dex"
     /// - If a leg moves fewer assets than `min_out` when `min_out > 0`
     pub fn rebalance(env: Env, protocol: Symbol, expected_apy: i128, min_out: i128) {
         Self::require_initialized(&env);
@@ -1474,7 +1631,12 @@ impl NeuroWealthVault {
         }
 
         // Validate protocol against allowlist
-        let supported_protocols = vec![&env, symbol_short!("blend"), symbol_short!("none")];
+        let supported_protocols = vec![
+            &env,
+            symbol_short!("blend"),
+            symbol_short!("dex"),
+            symbol_short!("none"),
+        ];
         if !supported_protocols.contains(protocol.clone()) {
             panic_with_error!(&env, VaultError::UnsupportedProtocol);
         }
@@ -1544,6 +1706,47 @@ impl NeuroWealthVault {
                 // Noop: no funds to supply, but protocol target is blend.
                 // Update CurrentProtocol so tracking matches intent (Issue #146).
                 Self::set_current_protocol(&env, symbol_short!("blend"));
+                status = symbol_short!("noop");
+            }
+
+            env.events().publish(
+                (TOPIC_REBALANCE,),
+                RebalanceEvent {
+                    protocol,
+                    expected_apy,
+                    status,
+                    amount_attempted,
+                    amount_moved,
+                    amount_supplied,
+                    amount_withdrawn,
+                },
+            );
+        } else if protocol == symbol_short!("dex") {
+            if !env.storage().instance().has(&DataKey::DexPool) {
+                panic_with_error!(&env, VaultError::DexPoolNotConfigured);
+            }
+
+            let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
+            let token_client = token::Client::new(&env, &usdc_token);
+            let vault_balance = token_client.balance(&env.current_contract_address());
+
+            let mut status = symbol_short!("success");
+
+            if vault_balance > 0 {
+                amount_attempted = amount_attempted.saturating_add(vault_balance);
+                let supplied = Self::supply_to_dex(&env, vault_balance, min_out);
+                amount_supplied = amount_supplied.saturating_add(supplied);
+                amount_moved = amount_moved.saturating_add(supplied);
+
+                if supplied == 0 {
+                    status = symbol_short!("failed");
+                } else if supplied < vault_balance {
+                    status = symbol_short!("partial");
+                }
+            } else if amount_moved == 0 {
+                // Noop: no funds to supply, but protocol target is dex.
+                // Update CurrentProtocol so tracking matches intent (mirrors Blend, Issue #146).
+                Self::set_current_protocol(&env, symbol_short!("dex"));
                 status = symbol_short!("noop");
             }
 
@@ -2346,6 +2549,68 @@ impl NeuroWealthVault {
         env.events().publish(
             (TOPIC_BLEND_POOL_CONFIGURED,),
             BlendPoolConfiguredEvent {
+                old_pool,
+                new_pool: pool_address.clone(),
+                owner: owner.clone(),
+            },
+        );
+    }
+
+    /// Configures the DEX liquidity pool contract address (owner only).
+    ///
+    /// Mirrors [`Self::set_blend_pool`]. The pool interface is validated by probing
+    /// its `balance` entrypoint before the address is stored, so an invalid pool
+    /// address is rejected at configuration time. `CurrentProtocol` is initialized
+    /// to `"none"` when not already set.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `owner` - The owner address (must authorize this call).
+    /// * `pool_address` - The DEX liquidity pool contract address.
+    ///
+    /// # Events
+    ///
+    /// Emits:
+    /// - `DexPoolConfiguredEvent`
+    ///
+    /// # Panics
+    ///
+    /// - If the caller is not the owner.
+    /// - If the provided `pool_address` is not a valid DEX pool contract.
+    pub fn set_dex_pool(env: Env, owner: Address, pool_address: Address) {
+        Self::require_initialized(&env);
+        owner.require_auth();
+        let stored_owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
+        Self::require(
+            &env,
+            owner == stored_owner,
+            VaultError::OnlyOwnerCanSetDexPool,
+        );
+
+        // Validate the pool interface by probing the `balance` function. If the
+        // address is not a valid DEX pool contract the invocation panics here,
+        // rejecting the registration before the address is stored.
+        let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
+        let vault_address = env.current_contract_address();
+        DexPoolClient::get_balance(&env, &pool_address, &usdc_token, &vault_address);
+
+        let old_pool: Option<Address> = env.storage().instance().get(&DataKey::DexPool);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::DexPool, &pool_address);
+
+        // Initialize CurrentProtocol to "none" if not set
+        if !env.storage().instance().has(&DataKey::CurrentProtocol) {
+            env.storage()
+                .instance()
+                .set(&DataKey::CurrentProtocol, &symbol_short!("none"));
+        }
+
+        env.events().publish(
+            (TOPIC_DEX_POOL_CONFIGURED,),
+            DexPoolConfiguredEvent {
                 old_pool,
                 new_pool: pool_address.clone(),
                 owner: owner.clone(),
@@ -3369,6 +3634,20 @@ impl NeuroWealthVault {
         env.storage().instance().get(&DataKey::BlendPool)
     }
 
+    /// Returns the DEX liquidity pool contract address, if configured.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    ///
+    /// # Returns
+    ///
+    /// Returns the DEX pool contract address, or None if not configured.
+    pub fn get_dex_pool(env: Env) -> Option<Address> {
+        Self::require_initialized(&env);
+        env.storage().instance().get(&DataKey::DexPool)
+    }
+
     /// Returns the ledger TTL used when approving Blend token spend.
     pub fn get_blend_approval_ttl(env: Env) -> u32 {
         Self::require_initialized(&env);
@@ -3983,6 +4262,202 @@ impl NeuroWealthVault {
         withdrawn
     }
 
+    /// Internal helper: Supplies USDC to the DEX liquidity pool.
+    ///
+    /// Mirrors [`Self::supply_to_blend`]: approves the pool to pull USDC, authorizes
+    /// the cross-contract `add_liquidity` call (with its `transfer_from`
+    /// sub-invocation), then supplies. The `min_out` floor is enforced both by
+    /// forwarding it to the pool and by [`Self::require_min_out`] on the realized
+    /// amount, giving slippage protection on the DEX leg.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    /// * `amount` - Amount of USDC to supply
+    /// * `min_out` - Minimum amount that must be supplied (0 = no check)
+    ///
+    /// # Returns
+    /// The amount actually supplied (may be less than requested).
+    ///
+    /// # Error Handling
+    /// - Returns 0 if amount <= 0
+    /// - Panics if the DEX pool address is not configured
+    /// - Panics with `MinOutNotMet` if the realized amount is below `min_out`
+    /// - Emits `DexSupplyEvent` with success status
+    fn supply_to_dex(env: &Env, amount: i128, min_out: i128) -> i128 {
+        if amount <= 0 {
+            return 0;
+        }
+
+        let pool_address: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::DexPool)
+            .expect("vault: dex pool not configured");
+
+        let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
+        let vault_address = env.current_contract_address();
+        let approval_ledger = env
+            .ledger()
+            .sequence()
+            .saturating_add(Self::get_approval_ttl_internal(env));
+
+        let approval_args: Vec<Val> = vec![
+            env,
+            vault_address.clone().into_val(env),
+            pool_address.clone().into_val(env),
+            amount.into_val(env),
+            approval_ledger.into_val(env),
+        ];
+        let add_liquidity_args: Vec<Val> = vec![
+            env,
+            vault_address.clone().into_val(env),
+            usdc_token.clone().into_val(env),
+            amount.into_val(env),
+            min_out.into_val(env),
+        ];
+        let transfer_from_args: Vec<Val> = vec![
+            env,
+            pool_address.clone().into_val(env),
+            vault_address.clone().into_val(env),
+            pool_address.clone().into_val(env),
+            amount.into_val(env),
+        ];
+
+        // Approve the DEX pool to spend USDC.
+        let token_client = token::Client::new(env, &usdc_token);
+        env.authorize_as_current_contract(vec![
+            env,
+            InvokerContractAuthEntry::Contract(SubContractInvocation {
+                context: ContractContext {
+                    contract: usdc_token.clone(),
+                    fn_name: Symbol::new(env, "approve"),
+                    args: approval_args,
+                },
+                sub_invocations: vec![env],
+            }),
+        ]);
+        token_client.approve(&vault_address, &pool_address, &amount, &approval_ledger);
+
+        // Authorize and execute the DEX add_liquidity (pulls USDC via transfer_from).
+        env.authorize_as_current_contract(vec![
+            env,
+            InvokerContractAuthEntry::Contract(SubContractInvocation {
+                context: ContractContext {
+                    contract: pool_address.clone(),
+                    fn_name: Symbol::new(env, "add_liquidity"),
+                    args: add_liquidity_args.clone(),
+                },
+                sub_invocations: vec![
+                    env,
+                    InvokerContractAuthEntry::Contract(SubContractInvocation {
+                        context: ContractContext {
+                            contract: usdc_token.clone(),
+                            fn_name: Symbol::new(env, "transfer_from"),
+                            args: transfer_from_args,
+                        },
+                        sub_invocations: vec![env],
+                    }),
+                ],
+            }),
+        ]);
+
+        let supplied = DexPoolClient::supply(
+            env,
+            &pool_address,
+            &usdc_token,
+            amount,
+            min_out,
+            &vault_address,
+        );
+
+        Self::require_min_out(env, supplied, min_out, "dex supply");
+
+        if supplied > 0 {
+            Self::set_current_protocol(env, symbol_short!("dex"));
+        }
+
+        env.events().publish(
+            (TOPIC_DEX_SUPPLY,),
+            DexSupplyEvent {
+                asset: usdc_token,
+                amount_actual: supplied,
+                success: supplied > 0,
+            },
+        );
+
+        supplied
+    }
+
+    /// Internal helper: Withdraws USDC from the DEX liquidity pool.
+    ///
+    /// Mirrors [`Self::withdraw_from_blend`]. When `amount == 0` the full deployed
+    /// position is withdrawn.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    /// * `amount` - Amount of USDC to withdraw (0 = withdraw all)
+    /// * `min_out` - Minimum amount that must be withdrawn (0 = no check)
+    ///
+    /// # Returns
+    /// The amount actually withdrawn.
+    ///
+    /// # Error Handling
+    /// - Returns 0 if there is nothing to withdraw
+    /// - Panics if the DEX pool address is not configured
+    /// - Panics with `MinOutNotMet` if the realized amount is below `min_out`
+    /// - Emits `DexWithdrawEvent` with success status and actual amount received
+    fn withdraw_from_dex(env: &Env, amount: i128, min_out: i128) -> i128 {
+        let pool_address: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::DexPool)
+            .expect("vault: dex pool not configured");
+
+        let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
+        let vault_address = env.current_contract_address();
+
+        // If amount is 0, withdraw the full deployed position.
+        let amount_to_withdraw = if amount == 0 {
+            DexPoolClient::get_balance(env, &pool_address, &usdc_token, &vault_address)
+        } else {
+            amount
+        };
+
+        if amount_to_withdraw <= 0 {
+            return 0;
+        }
+
+        let withdrawn = DexPoolClient::withdraw(
+            env,
+            &pool_address,
+            &usdc_token,
+            amount_to_withdraw,
+            min_out,
+            &vault_address,
+        );
+
+        Self::require_min_out(env, withdrawn, min_out, "dex withdraw");
+
+        if withdrawn > 0 {
+            let remaining =
+                DexPoolClient::get_balance(env, &pool_address, &usdc_token, &vault_address);
+            if remaining == 0 {
+                Self::set_current_protocol(env, symbol_short!("none"));
+            }
+        }
+
+        env.events().publish(
+            (TOPIC_DEX_WITHDRAW,),
+            DexWithdrawEvent {
+                asset: usdc_token,
+                amount_actual: withdrawn,
+                success: withdrawn > 0,
+            },
+        );
+
+        withdrawn
+    }
+
     /// Internal helper: Withdraws from the current protocol if funds are deployed.
     ///
     /// This function checks the current protocol and withdraws funds if necessary.
@@ -4002,6 +4477,31 @@ impl NeuroWealthVault {
 
         if current_protocol == *protocol && *protocol == symbol_short!("blend") {
             Self::withdraw_from_blend(env, 0, min_out)
+        } else if current_protocol == *protocol && *protocol == symbol_short!("dex") {
+            Self::withdraw_from_dex(env, 0, min_out)
+        } else {
+            0
+        }
+    }
+
+    /// Internal helper: Withdraws a specific `amount` from the active protocol.
+    ///
+    /// Used by user-facing `withdraw`/`withdraw_all` to pull only the liquidity
+    /// needed to satisfy a redemption (as opposed to [`Self::withdraw_from_protocol`],
+    /// which exits the full position). Dispatches to the protocol-specific helper.
+    ///
+    /// # Returns
+    /// The amount actually withdrawn, or 0 if `protocol` holds no funds.
+    fn withdraw_amount_from_protocol(
+        env: &Env,
+        protocol: &Symbol,
+        amount: i128,
+        min_out: i128,
+    ) -> i128 {
+        if *protocol == symbol_short!("blend") {
+            Self::withdraw_from_blend(env, amount, min_out)
+        } else if *protocol == symbol_short!("dex") {
+            Self::withdraw_from_dex(env, amount, min_out)
         } else {
             0
         }
@@ -4025,6 +4525,16 @@ impl NeuroWealthVault {
                     env.storage().instance().get(&DataKey::UsdcToken).unwrap();
                 let vault_address = env.current_contract_address();
                 BlendPoolClient::get_balance(env, &pool, &usdc_token, &vault_address)
+            } else {
+                0
+            }
+        } else if *protocol == symbol_short!("dex") {
+            let pool_address: Option<Address> = env.storage().instance().get(&DataKey::DexPool);
+            if let Some(pool) = pool_address {
+                let usdc_token: Address =
+                    env.storage().instance().get(&DataKey::UsdcToken).unwrap();
+                let vault_address = env.current_contract_address();
+                DexPoolClient::get_balance(env, &pool, &usdc_token, &vault_address)
             } else {
                 0
             }

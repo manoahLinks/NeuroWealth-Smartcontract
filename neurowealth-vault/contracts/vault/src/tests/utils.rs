@@ -32,6 +32,17 @@ enum BlendMockDataKey {
     MaxWithdrawLimit,
 }
 
+#[derive(Clone)]
+#[contracttype]
+enum DexMockDataKey {
+    /// Liquidity supplied by a provider for a given asset.
+    Supplied(Address),
+    /// Configurable max supply limit (0 = no limit, use requested amount)
+    MaxSupplyLimit,
+    /// Configurable max withdraw limit per transaction (0 = no limit)
+    MaxWithdrawLimit,
+}
+
 pub mod token {
     use super::*;
 
@@ -345,6 +356,139 @@ pub mod blend {
 
 pub use blend::{MockBlendPool, MockBlendPoolClient};
 
+pub mod dex {
+    use super::*;
+
+    /// Minimal single-asset DEX liquidity pool mock.
+    ///
+    /// Implements the same entrypoints the vault's `DexPoolClient` calls:
+    /// `add_liquidity`, `remove_liquidity`, and `balance`. It pulls/returns the
+    /// underlying USDC via `transfer_from`/`transfer` (mirroring the Blend mock)
+    /// and supports configurable supply/withdraw limits to simulate slippage and
+    /// partial fills for `min_out` testing.
+    #[contract]
+    pub struct MockDexPool;
+
+    #[contractimpl]
+    impl MockDexPool {
+        pub fn add_liquidity(
+            env: Env,
+            from: Address,
+            asset: Address,
+            amount: i128,
+            _min_out: i128,
+        ) -> i128 {
+            from.require_auth();
+            assert!(amount > 0, "amount must be positive");
+
+            let token_client = TestTokenClient::new(&env, &asset);
+            let pool = env.current_contract_address();
+            let allowance = token_client.allowance(&from, &pool);
+            assert!(allowance >= amount, "expected allowance before pool pull");
+
+            // Respect a configured supply limit to simulate slippage / shortfall.
+            let max_supply_limit: i128 = env
+                .storage()
+                .persistent()
+                .get(&DexMockDataKey::MaxSupplyLimit)
+                .unwrap_or(0);
+
+            let actual_amount = if max_supply_limit < 0 {
+                0
+            } else if max_supply_limit > 0 {
+                core::cmp::min(amount, max_supply_limit)
+            } else {
+                amount
+            };
+
+            if actual_amount > 0 {
+                token_client.transfer_from(&pool, &from, &pool, &actual_amount);
+
+                let supplied: i128 = env
+                    .storage()
+                    .persistent()
+                    .get(&DexMockDataKey::Supplied(asset.clone()))
+                    .unwrap_or(0);
+                env.storage().persistent().set(
+                    &DexMockDataKey::Supplied(asset),
+                    &(supplied + actual_amount),
+                );
+            }
+
+            actual_amount
+        }
+
+        pub fn remove_liquidity(
+            env: Env,
+            to: Address,
+            asset: Address,
+            amount: i128,
+            _min_out: i128,
+        ) -> i128 {
+            to.require_auth();
+            assert!(amount > 0, "amount must be positive");
+
+            let supplied: i128 = env
+                .storage()
+                .persistent()
+                .get(&DexMockDataKey::Supplied(asset.clone()))
+                .unwrap_or(0);
+            let amount_to_withdraw = core::cmp::min(amount, supplied);
+
+            // Respect a configured withdraw limit to simulate stuck liquidity.
+            let max_withdraw_limit: i128 = env
+                .storage()
+                .persistent()
+                .get(&DexMockDataKey::MaxWithdrawLimit)
+                .unwrap_or(0);
+
+            let actual_withdraw = if max_withdraw_limit > 0 {
+                core::cmp::min(amount_to_withdraw, max_withdraw_limit)
+            } else {
+                amount_to_withdraw
+            };
+
+            if actual_withdraw > 0 {
+                let token_client = TestTokenClient::new(&env, &asset);
+                token_client.transfer(&env.current_contract_address(), &to, &actual_withdraw);
+
+                env.storage().persistent().set(
+                    &DexMockDataKey::Supplied(asset),
+                    &(supplied - actual_withdraw),
+                );
+            }
+
+            actual_withdraw
+        }
+
+        /// Returns the liquidity position held for `_user` in `asset`.
+        pub fn balance(env: Env, asset: Address, _user: Address) -> i128 {
+            env.storage()
+                .persistent()
+                .get(&DexMockDataKey::Supplied(asset))
+                .unwrap_or(0)
+        }
+
+        /// Sets a max supply limit to simulate slippage / partial fills.
+        /// 0 = no limit (default behavior); negative = reject all supply.
+        pub fn set_max_supply_limit(env: Env, limit: i128) {
+            env.storage()
+                .persistent()
+                .set(&DexMockDataKey::MaxSupplyLimit, &limit);
+        }
+
+        /// Sets a max withdraw limit to simulate stuck liquidity.
+        /// 0 = no limit (default behavior).
+        pub fn set_max_withdraw_limit(env: Env, limit: i128) {
+            env.storage()
+                .persistent()
+                .set(&DexMockDataKey::MaxWithdrawLimit, &limit);
+        }
+    }
+}
+
+pub use dex::{MockDexPool, MockDexPoolClient};
+
 // ============================================================================
 // TEST SETUP FUNCTIONS
 // ============================================================================
@@ -382,6 +526,18 @@ pub fn setup_vault_with_token_and_blend(
     let blend_pool = env.register_contract(None, MockBlendPool);
 
     (contract_id, agent, owner, usdc_token, blend_pool)
+}
+
+/// Sets up a vault with a real deployed TestToken and a MockDexPool.
+///
+/// Returns `(vault_id, agent, owner, usdc_token, dex_pool)`.
+pub fn setup_vault_with_token_and_dex(
+    env: &Env,
+) -> (Address, Address, Address, Address, Address) {
+    let (contract_id, agent, owner, usdc_token) = setup_vault_with_token(env);
+    let dex_pool = env.register_contract(None, MockDexPool);
+
+    (contract_id, agent, owner, usdc_token, dex_pool)
 }
 
 // ============================================================================

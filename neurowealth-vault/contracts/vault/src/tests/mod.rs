@@ -8,6 +8,9 @@ mod test_blend_integration;
 mod test_budget;
 mod test_checked_arithmetic;
 mod test_deposit;
+#[cfg(feature = "dex-devnet")]
+mod test_dex_devnet;
+mod test_dex_integration;
 mod test_event_schema;
 mod test_events;
 mod test_exchange_rate;

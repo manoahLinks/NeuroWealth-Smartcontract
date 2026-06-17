@@ -332,6 +332,45 @@ pub struct BlendPoolConfiguredEvent {
 }
 ```
 
+### 15b. DexSupplyEvent
+**Topic:** `"dex_sup"`
+
+Emitted when assets are supplied to a DEX liquidity pool (Issue #228).
+
+```rust
+pub struct DexSupplyEvent {
+    pub asset: Address,        // Asset address (USDC)
+    pub amount_actual: i128,   // Amount actually supplied (balance-delta measured)
+    pub success: bool,         // Whether supply succeeded
+}
+```
+
+### 15c. DexWithdrawEvent
+**Topic:** `"dex_wd"`
+
+Emitted when assets are withdrawn from a DEX liquidity pool (Issue #228).
+
+```rust
+pub struct DexWithdrawEvent {
+    pub asset: Address,        // Asset address (USDC)
+    pub amount_actual: i128,   // Amount actually received (balance-delta measured)
+    pub success: bool,         // Whether withdrawal succeeded
+}
+```
+
+### 15d. DexPoolConfiguredEvent
+**Topic:** `"dex_cfg"`
+
+Emitted after `set_dex_pool` updates the configured DEX pool address (Issue #228).
+
+```rust
+pub struct DexPoolConfiguredEvent {
+    pub old_pool: Option<Address>, // Previous pool address, or None on first configuration
+    pub new_pool: Address,         // Newly configured pool address
+    pub owner: Address,            // Owner/admin who triggered the change
+}
+```
+
 ## Upgrade Events
 
 ### 16. UpgradedEvent
