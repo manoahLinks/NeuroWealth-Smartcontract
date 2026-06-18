@@ -113,6 +113,24 @@ Our CI pipeline (defined in `.github/workflows/ci.yml`) runs on every push and p
 2. **Clippy Lint**: `cargo clippy --all-targets --all-features -- -D warnings`
 3. **Tests**: `cargo test --verbose`
 4. **Build WASM**: Successful build of the contract WASM.
+5. **Dependency Audit**: `cargo-deny check` runs against the policy in [`deny.toml`](deny.toml), blocking dependencies with disallowed licenses or known security advisories.
+
+### Dependency Audit & Advisory Exceptions
+
+The dependency audit ([`EmbarkStudios/cargo-deny-action`](https://github.com/EmbarkStudios/cargo-deny-action)) enforces the license, advisory, and source policies defined in [`deny.toml`](deny.toml). To reproduce it locally:
+
+```bash
+cargo install --locked cargo-deny
+cargo deny --manifest-path neurowealth-vault/Cargo.toml check --config deny.toml
+```
+
+Occasionally a published advisory cannot be resolved immediately (for example, the upstream fix has not yet been released). In that case you can request a **time-limited exception** rather than disabling the check:
+
+1. Open a tracking issue describing the advisory and the remediation plan.
+2. Open a PR that adds an `[[advisories.ignore]]` entry to [`deny.toml`](deny.toml). Each entry must include the RustSec `id`, the affected `crate`, and a `reason` that justifies the exception and links to the tracking issue. See the commented example and process notes in the *Exceptions* section of [`deny.toml`](deny.toml).
+3. Exceptions are reviewed and re-evaluated every sprint, and should be removed as soon as an upstream fix is available.
+
+License exceptions follow the same PR-based process but additionally require legal sign-off before the `[[licenses.exceptions]]` entry is added.
 
 ## Coding Standards
 

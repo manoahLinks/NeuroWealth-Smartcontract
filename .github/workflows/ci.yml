@@ -118,6 +118,25 @@ jobs:
               ;;
           esac
 
+  cargo-deny:
+    name: Dependency Audit (cargo-deny)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+          # The vault workspace manifest drives the dependency graph.
+          manifest-path: ./neurowealth-vault/Cargo.toml
+          # Policy lives in deny.toml at the repo root.
+          command-arguments: "--config deny.toml"
+          # Respect the [graph] settings in deny.toml instead of forcing
+          # --all-features (the action's default).
+          arguments: ""
+
   changes:
     name: Detect changes
     runs-on: ubuntu-latest

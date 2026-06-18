@@ -15,18 +15,14 @@ no-default-features = false
 # Which advisory sources to query.
 db-urls = ["https://github.com/rustsec/advisory-db"]
 
-# Fail the build for any vulnerability at or above this CVSS score.
-# "medium" == CVSS >= 4.0; use "high" (>= 7.0) for a less strict gate.
-vulnerability = "deny"
-
-# Unmaintained crates are warned about, not failed.
-unmaintained = "warn"
-
 # Crates that have been yanked from crates.io fail the build.
 yanked = "deny"
 
-# Notice-level advisories (informational) are only printed.
-notice = "warn"
+# Unmaintained crates: warn on transitive, deny on workspace direct deps
+unmaintained = "all"
+
+# Unsound crates: only fail if they're direct workspace dependencies
+unsound = "workspace"
 
 # ── Exceptions ────────────────────────────────────────────────────────────────
 # Add entries here when a published advisory cannot be resolved immediately.
@@ -61,25 +57,6 @@ allow = [
     "CC0-1.0",
     "MPL-2.0",          # Mozilla Public License — compatible with our use
 ]
-
-# Deny these licenses outright (copyleft that would affect our distribution).
-deny = [
-    "GPL-1.0",
-    "GPL-2.0",
-    "GPL-3.0",
-    "LGPL-2.0",
-    "LGPL-2.1",
-    "LGPL-3.0",
-    "AGPL-1.0",
-    "AGPL-3.0",
-]
-
-# Warn (but don't fail) for ambiguous/unlicensed crates so we can triage.
-unlicensed = "deny"
-copyleft = "warn"
-allow-osi-fsf-free = "neither"
-default = "deny"
-confidence-threshold = 0.8
 
 # Per-crate license exceptions — add only after legal sign-off.
 # [[licenses.exceptions]]
