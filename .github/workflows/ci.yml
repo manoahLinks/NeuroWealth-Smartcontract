@@ -9,6 +9,12 @@ on:
   schedule:
     - cron: "0 3 * * 0"
 
+env:
+  # Maximum allowed size in bytes for the optimised contract WASM.
+  # Raise this in the same PR as any deliberate feature addition that grows
+  # the binary, and document the reason in the PR description.
+  WASM_SIZE_LIMIT_BYTES: 1500000
+
 jobs:
   ci-matrix:
     name: CI Matrix
@@ -111,12 +117,44 @@ jobs:
               wasm-opt --strip-target-features --mvp-features \
                 "$WASM_FILE" \
                 -o "$WASM_FILE"
+
+              WASM_SIZE=$(stat -c%s "$WASM_FILE")
+              LIMIT="${WASM_SIZE_LIMIT_BYTES:-1500000}"
+
+              {
+                echo "## WASM Size Report"
+                echo ""
+                echo "| Metric | Value |"
+                echo "|--------|-------|"
+                echo "| Optimised size | ${WASM_SIZE} bytes |"
+                echo "| Limit          | ${LIMIT} bytes |"
+              } >> "$GITHUB_STEP_SUMMARY"
+
+              if [ "$WASM_SIZE" -gt "$LIMIT" ]; then
+                echo "| Status | :x: EXCEEDED |" >> "$GITHUB_STEP_SUMMARY"
+                echo "::error::Optimised WASM is ${WASM_SIZE} bytes, which exceeds the ${LIMIT}-byte limit. See docs/WASM_SIZE.md for reduction tips."
+                exit 1
+              else
+                echo "| Status | :white_check_mark: OK |" >> "$GITHUB_STEP_SUMMARY"
+                echo "Optimised WASM is ${WASM_SIZE} bytes — within the ${LIMIT}-byte limit."
+              fi
+
+              # Export the WASM path for the artifact upload step.
+              echo "WASM_FILE=$WASM_FILE" >> "$GITHUB_ENV"
               ;;
             *)
               echo "Unknown step: ${{ matrix.step }}" >&2
               exit 1
               ;;
           esac
+
+      - name: Upload optimised WASM artifact
+        if: matrix.step == 'build-wasm'
+        uses: actions/upload-artifact@v4
+        with:
+          name: neurowealth-vault-wasm
+          path: ${{ env.WASM_FILE }}
+          retention-days: 14
 
   cargo-deny:
     name: Dependency Audit (cargo-deny)
