@@ -115,7 +115,7 @@ jobs:
 
               WASM_DIR="${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/release"
               WASM_FILE="$WASM_DIR/neurowealth_vault.wasm"
-              wasm-opt --strip-target-features --mvp-features \
+              wasm-opt --strip-target-features \
                 "$WASM_FILE" \
                 -o "$WASM_FILE"
 
