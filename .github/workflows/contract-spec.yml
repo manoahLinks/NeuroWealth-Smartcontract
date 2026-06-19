@@ -83,7 +83,7 @@ jobs:
           EOF
       
       - name: 📦 Upload spec as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: contract-spec
           path: contract-spec.json
