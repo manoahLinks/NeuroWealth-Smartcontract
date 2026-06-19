@@ -25,7 +25,7 @@ fn test_deposit_overflow_guard_exists() {
 }
 
 #[test]
-#[should_panic(expected = "vault: insufficient shares for requested amount")]
+#[should_panic(expected = "Error(Contract, #11)")]
 fn test_withdraw_underflow() {
     let env = Env::default();
     env.mock_all_auths();

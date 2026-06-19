@@ -124,7 +124,7 @@ pub mod token {
                 ))
                 .unwrap_or(0);
 
-            if expiration > 0 && expiration < env.ledger().sequence() {
+            if expiration < env.ledger().sequence() {
                 return 0;
             }
 
@@ -531,9 +531,7 @@ pub fn setup_vault_with_token_and_blend(
 /// Sets up a vault with a real deployed TestToken and a MockDexPool.
 ///
 /// Returns `(vault_id, agent, owner, usdc_token, dex_pool)`.
-pub fn setup_vault_with_token_and_dex(
-    env: &Env,
-) -> (Address, Address, Address, Address, Address) {
+pub fn setup_vault_with_token_and_dex(env: &Env) -> (Address, Address, Address, Address, Address) {
     let (contract_id, agent, owner, usdc_token) = setup_vault_with_token(env);
     let dex_pool = env.register_contract(None, MockDexPool);
 

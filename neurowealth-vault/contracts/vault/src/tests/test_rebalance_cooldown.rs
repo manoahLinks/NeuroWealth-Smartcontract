@@ -5,7 +5,7 @@
 //!   2. Agent call within cooldown panics with clear error (Error(Contract, #43)).
 
 use super::utils::*;
-use soroban_sdk::{symbol_short, testutils::Address as _, Address, Env};
+use soroban_sdk::{symbol_short, testutils::Ledger, Env};
 
 // ============================================================================
 // AC-1: Configurable minimum ledgers between rebalances (owner-set)

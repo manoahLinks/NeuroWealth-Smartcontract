@@ -108,7 +108,7 @@ fn test_update_total_assets_blend_yield_succeeds() {
 
     assert_eq!(client.get_total_assets(), new_total);
     // Token is still in pool (agent didn't withdraw)
-    assert_eq!(token_client.balance(&usdc_token), 0_i128.max(0)); // pool still holds it
+    assert_eq!(token_client.balance(&usdc_token), 0_i128); // pool still holds it
     drop(token_client); // suppress unused warning
 }
 

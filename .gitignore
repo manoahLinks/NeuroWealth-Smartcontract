@@ -3,3 +3,4 @@ scripts/e2e-artifacts/*
 !scripts/e2e-artifacts/.gitkeep
 
 CLAUDE.md
+plan.md

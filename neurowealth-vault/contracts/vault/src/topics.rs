@@ -3,6 +3,8 @@
 //! This module serves as the single source of truth for all event topics
 //! emitted by the vault. Symbols are limited to 9 characters.
 
+#![allow(missing_docs)]
+
 use soroban_sdk::{symbol_short, Symbol};
 
 pub const INIT: Symbol = symbol_short!("init");
