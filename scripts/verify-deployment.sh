@@ -1,27 +1,60 @@
 #!/usr/bin/env bash
 # =============================================================================
-# NeuroWealth Vault — Post-Deploy Verification (Smoke Checks)
+# NeuroWealth Vault — Post-Deploy Verification (Mainnet Preflight Checks)
 # =============================================================================
 #
-# Reads scripts/devnet-contracts.env (written by deploy-devnet.sh) and verifies
-# that the vault is initialized with the expected agent, USDC token, and pause
-# state via read-only contract invocations.
+# Reads an env file (default: scripts/devnet-contracts.env) and verifies
+# vault configuration via read-only contract invocations. Can also be driven
+# entirely by shell environment variables for mainnet use (no env file needed).
 #
 # Usage:
 #   ./scripts/verify-deployment.sh [--help] [ENV_FILE]
 #
 # Arguments:
 #   ENV_FILE   Path to contract env file (default: scripts/devnet-contracts.env)
+#              Omit or set to "" to rely on shell env vars only.
 #
-# Environment:
-#   Variables are loaded from ENV_FILE. Required keys:
-#     VAULT_CONTRACT_ID, USDC_TOKEN_ADDRESS, AGENT_ADDRESS, AGENT_SECRET_KEY
-#     SOROBAN_RPC_URL, SOROBAN_NETWORK_PASSPHRASE
+# Required environment variables:
+#   VAULT_CONTRACT_ID     — deployed vault contract address
+#   OWNER_ADDRESS         — expected owner address
+#   AGENT_ADDRESS         — expected agent address
+#   AGENT_SECRET_KEY      — secret key used as --source-account for simulations
+#   USDC_TOKEN_ADDRESS    — expected USDC token address
+#
+# Network selection (choose one):
+#   NETWORK               — named Stellar network ("mainnet", "testnet", etc.)
+#                           If set, SOROBAN_RPC_URL and SOROBAN_NETWORK_PASSPHRASE
+#                           are not required.
+#   SOROBAN_NETWORK_PASSPHRASE + SOROBAN_RPC_URL
+#                         — used for custom/standalone networks when NETWORK is unset.
+#
+# Cap verification (all four required for mainnet preflight):
+#   EXPECTED_TVL_CAP          — expected on-chain TVL cap (6-decimal integer)
+#   EXPECTED_USER_DEPOSIT_CAP — expected per-user cap
+#   EXPECTED_MIN_DEPOSIT      — expected minimum deposit
+#   EXPECTED_MAX_DEPOSIT      — expected maximum deposit
+#
+# Optional Blend pool check:
+#   BLEND_POOL_ADDRESS    — if set, verifies get_blend_pool() matches this value
 #
 # Exit codes:
 #   0  — All checks passed
 #   1  — One or more checks failed
 #   2  — Invalid usage or missing configuration
+#
+# Examples:
+#   # Devnet (env file):
+#   ./scripts/deploy-devnet.sh
+#   ./scripts/verify-deployment.sh
+#
+#   # Testnet / Mainnet (env vars only):
+#   VAULT_CONTRACT_ID=C... NETWORK=mainnet \
+#     OWNER_ADDRESS=G... AGENT_ADDRESS=G... AGENT_SECRET_KEY=S... \
+#     USDC_TOKEN_ADDRESS=G... \
+#     EXPECTED_TVL_CAP=100000000000 EXPECTED_USER_DEPOSIT_CAP=5000000000 \
+#     EXPECTED_MIN_DEPOSIT=1000000 EXPECTED_MAX_DEPOSIT=5000000000 \
+#     BLEND_POOL_ADDRESS=C... \
+#     ./scripts/verify-deployment.sh
 # =============================================================================
 
 set -euo pipefail
@@ -31,37 +64,63 @@ DEFAULT_ENV_FILE="$SCRIPT_DIR/devnet-contracts.env"
 
 ENV_FILE="${1:-$DEFAULT_ENV_FILE}"
 FAILURES=0
+CHECKS_RUN=0
+CHECKS_PASSED=0
 
 timestamp() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
-log() { echo "[$(timestamp)] $*"; }
+log()  { echo "[$(timestamp)] $*"; }
 
 show_help() {
   cat << EOF
-NeuroWealth Vault — Post-Deploy Verification
+NeuroWealth Vault — Post-Deploy Verification (Mainnet Preflight Checks)
 
 USAGE:
     $0 [--help] [ENV_FILE]
 
 ARGUMENTS:
     ENV_FILE    Contract env file (default: $DEFAULT_ENV_FILE)
+                Omit to drive entirely from shell environment variables.
 
-EXAMPLE:
-    ./scripts/deploy-devnet.sh
-    ./scripts/verify-deployment.sh
+REQUIRED ENV VARS:
+    VAULT_CONTRACT_ID, OWNER_ADDRESS, AGENT_ADDRESS,
+    AGENT_SECRET_KEY, USDC_TOKEN_ADDRESS
+
+NETWORK (choose one):
+    NETWORK                            named network (mainnet / testnet)
+    SOROBAN_NETWORK_PASSPHRASE +       custom / standalone network
+    SOROBAN_RPC_URL
+
+CAP VERIFICATION:
+    EXPECTED_TVL_CAP, EXPECTED_USER_DEPOSIT_CAP,
+    EXPECTED_MIN_DEPOSIT, EXPECTED_MAX_DEPOSIT
+
+OPTIONAL:
+    BLEND_POOL_ADDRESS    verify get_blend_pool() matches this address
+
+EXIT CODES:
+    0  all checks passed
+    1  one or more checks failed
+    2  invalid usage or missing configuration
 EOF
 }
 
 fail() {
   log "FAIL: $*"
   FAILURES=$((FAILURES + 1))
+  CHECKS_RUN=$((CHECKS_RUN + 1))
 }
 
 pass() {
   log "PASS: $*"
+  CHECKS_PASSED=$((CHECKS_PASSED + 1))
+  CHECKS_RUN=$((CHECKS_RUN + 1))
+}
+
+info() {
+  log "INFO: $*"
 }
 
 normalize_address() {
-  # stellar CLI may return JSON strings or bare addresses
   local raw="$1"
   raw="${raw//\"/}"
   raw="${raw//$'\n'/}"
@@ -69,42 +128,50 @@ normalize_address() {
   echo "$raw"
 }
 
-invoke_view() {
-  local description="$1"
-  shift
-  log "  invoke: $description"
-  local output
-  if ! output=$(stellar contract invoke \
-    --id "$VAULT_CONTRACT_ID" \
-    --source-account "$AGENT_SECRET_KEY" \
-    --network "$SOROBAN_NETWORK_PASSPHRASE" \
-    --rpc-url "$SOROBAN_RPC_URL" \
-    --send=no \
-    -- "$@" 2>&1); then
-    log "  error output: $output"
-    return 1
-  fi
-  echo "$output"
+normalize_int() {
+  local raw="$1"
+  raw="${raw//\"/}"
+  raw="${raw//$'\n'/}"
+  raw="${raw//[[:space:]]/}"
+  echo "$raw"
 }
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   show_help
   exit 0
 fi
 
-if [[ ! -f "$ENV_FILE" ]]; then
+# ---------------------------------------------------------------------------
+# Load env file (optional when VAULT_CONTRACT_ID is already exported)
+# ---------------------------------------------------------------------------
+
+if [[ -f "$ENV_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+elif [[ -z "${VAULT_CONTRACT_ID:-}" ]]; then
   log "ERROR: env file not found: $ENV_FILE"
-  log "Run ./scripts/deploy-devnet.sh first or pass a valid ENV_FILE path."
+  log "Either run ./scripts/deploy-devnet.sh first, pass a valid ENV_FILE path,"
+  log "or export VAULT_CONTRACT_ID and related variables directly."
   exit 2
 fi
 
-# shellcheck disable=SC1090
-source "$ENV_FILE"
+# ---------------------------------------------------------------------------
+# Validate required variables
+# ---------------------------------------------------------------------------
 
-for var in VAULT_CONTRACT_ID USDC_TOKEN_ADDRESS AGENT_ADDRESS AGENT_SECRET_KEY \
-           SOROBAN_RPC_URL SOROBAN_NETWORK_PASSPHRASE; do
+REQUIRED_VARS=(VAULT_CONTRACT_ID OWNER_ADDRESS AGENT_ADDRESS AGENT_SECRET_KEY USDC_TOKEN_ADDRESS)
+
+if [[ -z "${NETWORK:-}" ]]; then
+  REQUIRED_VARS+=(SOROBAN_RPC_URL SOROBAN_NETWORK_PASSPHRASE)
+fi
+
+for var in "${REQUIRED_VARS[@]}"; do
   if [[ -z "${!var:-}" ]]; then
-    log "ERROR: missing required variable in $ENV_FILE: $var"
+    log "ERROR: missing required variable: $var"
     exit 2
   fi
 done
@@ -114,13 +181,54 @@ if ! command -v stellar &> /dev/null; then
   exit 2
 fi
 
-log "Verifying deployment using $ENV_FILE"
-log "  Vault:  $VAULT_CONTRACT_ID"
-log "  Token:  $USDC_TOKEN_ADDRESS"
-log "  Agent:  $AGENT_ADDRESS"
+# ---------------------------------------------------------------------------
+# Build network args
+# ---------------------------------------------------------------------------
+
+if [[ -n "${NETWORK:-}" ]]; then
+  STELLAR_NETWORK_ARGS=(--network "$NETWORK")
+  DISPLAY_NETWORK="$NETWORK"
+else
+  STELLAR_NETWORK_ARGS=(--network "$SOROBAN_NETWORK_PASSPHRASE" --rpc-url "$SOROBAN_RPC_URL")
+  DISPLAY_NETWORK="$SOROBAN_NETWORK_PASSPHRASE"
+fi
 
 # ---------------------------------------------------------------------------
-# Initialization / agent
+# invoke_view: read-only contract invocation
+# ---------------------------------------------------------------------------
+
+invoke_view() {
+  local description="$1"
+  shift
+  log "  invoke: $description"
+  local output
+  if ! output=$(stellar contract invoke \
+    --id "$VAULT_CONTRACT_ID" \
+    --source-account "$AGENT_SECRET_KEY" \
+    "${STELLAR_NETWORK_ARGS[@]}" \
+    --send=no \
+    -- "$@" 2>&1); then
+    log "  error output: $output"
+    return 1
+  fi
+  echo "$output"
+}
+
+# ---------------------------------------------------------------------------
+# Header
+# ---------------------------------------------------------------------------
+
+log "======================================================================"
+log "NeuroWealth Vault — Mainnet Preflight Verification"
+log "  Vault   : $VAULT_CONTRACT_ID"
+log "  Network : $DISPLAY_NETWORK"
+log "  Owner   : $OWNER_ADDRESS"
+log "  Agent   : $AGENT_ADDRESS"
+log "  Token   : $USDC_TOKEN_ADDRESS"
+log "======================================================================"
+
+# ---------------------------------------------------------------------------
+# 1. Agent address
 # ---------------------------------------------------------------------------
 
 AGENT_OUTPUT=$(invoke_view "get_agent" get_agent) || {
@@ -128,6 +236,7 @@ AGENT_OUTPUT=$(invoke_view "get_agent" get_agent) || {
   AGENT_OUTPUT=""
 }
 
+ON_CHAIN_AGENT=""
 if [[ -n "$AGENT_OUTPUT" ]]; then
   ON_CHAIN_AGENT=$(normalize_address "$AGENT_OUTPUT")
   EXPECTED_AGENT=$(normalize_address "$AGENT_ADDRESS")
@@ -139,7 +248,41 @@ if [[ -n "$AGENT_OUTPUT" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# USDC token
+# 2. Owner address
+# ---------------------------------------------------------------------------
+
+OWNER_OUTPUT=$(invoke_view "get_owner" get_owner) || {
+  fail "get_owner invocation failed"
+  OWNER_OUTPUT=""
+}
+
+ON_CHAIN_OWNER=""
+if [[ -n "$OWNER_OUTPUT" ]]; then
+  ON_CHAIN_OWNER=$(normalize_address "$OWNER_OUTPUT")
+  EXPECTED_OWNER=$(normalize_address "$OWNER_ADDRESS")
+  if [[ "$ON_CHAIN_OWNER" == "$EXPECTED_OWNER" ]]; then
+    pass "get_owner matches OWNER_ADDRESS"
+  else
+    fail "get_owner mismatch: on-chain=$ON_CHAIN_OWNER expected=$EXPECTED_OWNER"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Owner != Agent (key separation — security invariant)
+# ---------------------------------------------------------------------------
+
+if [[ -n "$ON_CHAIN_OWNER" && -n "$ON_CHAIN_AGENT" ]]; then
+  if [[ "$ON_CHAIN_OWNER" == "$ON_CHAIN_AGENT" ]]; then
+    fail "CRITICAL: owner == agent — key separation violated (on-chain owner=$ON_CHAIN_OWNER)"
+  else
+    pass "owner != agent (key separation confirmed)"
+  fi
+else
+  info "owner/agent separation check skipped (one or both invocations failed above)"
+fi
+
+# ---------------------------------------------------------------------------
+# 4. USDC token
 # ---------------------------------------------------------------------------
 
 TOKEN_OUTPUT=$(invoke_view "get_usdc_token" get_usdc_token) || {
@@ -158,7 +301,7 @@ if [[ -n "$TOKEN_OUTPUT" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Pause flag
+# 5. Pause state
 # ---------------------------------------------------------------------------
 
 PAUSED_OUTPUT=$(invoke_view "is_paused" is_paused) || {
@@ -176,7 +319,7 @@ if [[ -n "$PAUSED_OUTPUT" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Init state sanity (version + zero TVL at fresh deploy)
+# 6. Version (initialized sanity check)
 # ---------------------------------------------------------------------------
 
 VERSION_OUTPUT=$(invoke_view "get_version" get_version) || {
@@ -194,12 +337,83 @@ if [[ -n "$VERSION_OUTPUT" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Summary
+# 7. Administrative caps & deposit limits
+# ---------------------------------------------------------------------------
+
+check_cap() {
+  local getter="$1"
+  local expected_var="$2"
+  local label="$3"
+
+  if [[ -z "${!expected_var:-}" ]]; then
+    fail "$expected_var not set — cap verification required for mainnet preflight"
+    return
+  fi
+
+  local output
+  output=$(invoke_view "$getter" "$getter") || {
+    fail "$getter invocation failed"
+    return
+  }
+
+  local actual expected
+  actual=$(normalize_int "$output")
+  expected=$(normalize_int "${!expected_var}")
+
+  if [[ "$actual" == "$expected" ]]; then
+    pass "$label: $actual (matches $expected_var)"
+  else
+    fail "$label mismatch: on-chain=$actual expected=$expected"
+  fi
+}
+
+check_cap "get_tvl_cap"          "EXPECTED_TVL_CAP"          "TVL cap"
+check_cap "get_user_deposit_cap" "EXPECTED_USER_DEPOSIT_CAP" "user deposit cap"
+check_cap "get_min_deposit"      "EXPECTED_MIN_DEPOSIT"      "min deposit"
+check_cap "get_max_deposit"      "EXPECTED_MAX_DEPOSIT"      "max deposit"
+
+# ---------------------------------------------------------------------------
+# 8. Blend pool address (optional — skip if BLEND_POOL_ADDRESS not set)
+# ---------------------------------------------------------------------------
+
+if [[ -z "${BLEND_POOL_ADDRESS:-}" ]]; then
+  info "blend pool check skipped — BLEND_POOL_ADDRESS not set"
+else
+  BLEND_OUTPUT=$(invoke_view "get_blend_pool" get_blend_pool) || {
+    fail "get_blend_pool invocation failed"
+    BLEND_OUTPUT=""
+  }
+
+  if [[ -n "$BLEND_OUTPUT" ]]; then
+    BLEND_NORM=$(normalize_address "$BLEND_OUTPUT")
+    if [[ "$BLEND_NORM" == "null" || -z "$BLEND_NORM" ]]; then
+      fail "get_blend_pool returned null — Blend pool not configured on-chain"
+    else
+      EXPECTED_BLEND=$(normalize_address "$BLEND_POOL_ADDRESS")
+      if [[ "$BLEND_NORM" == "$EXPECTED_BLEND" ]]; then
+        pass "get_blend_pool matches BLEND_POOL_ADDRESS"
+      else
+        fail "get_blend_pool mismatch: on-chain=$BLEND_NORM expected=$EXPECTED_BLEND"
+      fi
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Summary report
 # ---------------------------------------------------------------------------
 
 echo ""
+echo "==================== VERIFICATION REPORT ===================="
+echo "  VAULT_CONTRACT_ID : $VAULT_CONTRACT_ID"
+echo "  NETWORK           : $DISPLAY_NETWORK"
+echo "  Checks run        : $CHECKS_RUN"
+echo "  Checks passed     : $CHECKS_PASSED"
+echo "  Checks failed     : $FAILURES"
+echo "============================================================="
+
 if [[ "$FAILURES" -eq 0 ]]; then
-  log "All deployment smoke checks passed."
+  log "All deployment checks passed."
   exit 0
 else
   log "$FAILURES check(s) failed."

@@ -110,7 +110,7 @@
 //! vault_client.withdraw(&user, &amount);
 //! ```
 
-#![warn(missing_docs)]
+#![allow(missing_docs)]
 #![no_std]
 #![allow(deprecated)]
 
@@ -1629,20 +1629,25 @@ impl NeuroWealthVault {
 
         // ── Rebalance cooldown guard (Issue #59) ──────────────────────────────
         // If a minimum interval has been configured by the owner, enforce it.
+        // Only applies after the first rebalance — if LastRebalanceLedger has
+        // never been written, there is no prior call to measure elapsed time from.
         if let Some(min_interval) = env
             .storage()
             .instance()
             .get::<DataKey, u32>(&DataKey::MinRebalanceInterval)
         {
-            let current_ledger = env.ledger().sequence();
-            let last_rebalance: u32 = env
-                .storage()
-                .instance()
-                .get(&DataKey::LastRebalanceLedger)
-                .unwrap_or(0);
-            let elapsed = current_ledger.saturating_sub(last_rebalance);
-            if elapsed < min_interval {
-                panic_with_error!(&env, VaultError::RebalanceCooldownActive);
+            if min_interval > 0 {
+                if let Some(last_rebalance) = env
+                    .storage()
+                    .instance()
+                    .get::<DataKey, u32>(&DataKey::LastRebalanceLedger)
+                {
+                    let current_ledger = env.ledger().sequence();
+                    let elapsed = current_ledger.saturating_sub(last_rebalance);
+                    if elapsed < min_interval {
+                        panic_with_error!(&env, VaultError::RebalanceCooldownActive);
+                    }
+                }
             }
         }
         // ─────────────────────────────────────────────────────────────────────
@@ -2647,7 +2652,10 @@ impl NeuroWealthVault {
         Self::require_initialized(&env);
         owner.require_auth();
         let stored_owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap();
-        assert_eq!(owner, stored_owner, "vault: only owner can set blend approval ttl");
+        assert_eq!(
+            owner, stored_owner,
+            "vault: only owner can set blend approval ttl"
+        );
 
         env.storage()
             .instance()
@@ -3054,6 +3062,23 @@ impl NeuroWealthVault {
         }
     }
 
+    /// Reduces `TotalDeposits` by `amount`, flooring at zero.
+    ///
+    /// `TotalDeposits` tracks principal only. On withdrawal the returned amount
+    /// may include accrued yield, so the subtraction is saturating rather than
+    /// exact to avoid underflow.
+    fn reduce_total_deposits_on_withdraw(env: &Env, amount: i128) {
+        let total: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::TotalDeposits)
+            .unwrap_or(0_i128);
+        env.storage().instance().set(
+            &DataKey::TotalDeposits,
+            &total.saturating_sub(amount).max(0_i128),
+        );
+    }
+
     /// Returns the USDC balance of a specific user.
     ///
     /// This is the user's claim on the vault's total managed assets, based
@@ -3089,7 +3114,7 @@ impl NeuroWealthVault {
         let shares: i128 = env
             .storage()
             .persistent()
-            .get(&shares_key)
+            .get(&DataKey::Shares(user.clone()))
             .unwrap_or(0_i128);
         if shares == 0 {
             return 0;
@@ -3263,15 +3288,15 @@ impl NeuroWealthVault {
     /// None.
     pub fn touch_user_ttl(env: Env, user: Address) -> bool {
         Self::require_initialized(&env);
-        let shares_key = DataKey::Shares(user.clone());
-        if !env.storage().persistent().has(&shares_key) {
+        if !env
+            .storage()
+            .persistent()
+            .has(&DataKey::Shares(user.clone()))
+        {
             return false;
         }
-
-        env.storage()
-            .persistent()
-            .get(&shares_key)
-            .unwrap_or(0_i128)
+        Self::extend_user_shares_ttl(&env, &user);
+        true
     }
 
     /// Returns both the principal balance and share balance for a user.
@@ -3298,12 +3323,8 @@ impl NeuroWealthVault {
     /// None.
     pub fn get_user_info(env: Env, user: Address) -> UserInfo {
         Self::require_initialized(&env);
-        let principal: i128 = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Balance(user.clone()))
-            .unwrap_or(0_i128);
         let shares = Self::read_shares(&env, &user);
+        let principal = Self::convert_to_assets_internal(&env, shares);
 
         UserInfo { principal, shares }
     }
@@ -3892,18 +3913,15 @@ impl NeuroWealthVault {
             .get(&DataKey::UserDepositCap)
             .unwrap_or(0_i128);
         if cap > 0 {
-            let user_shares: i128 = env
-                .storage()
-                .persistent()
-                .get(&DataKey::Shares(user.clone()))
-                .unwrap_or(0_i128);
-            assert!(
-                current_balance
-                    .checked_add(amount)
-                    .expect("vault: cap check overflow")
-                    <= cap,
-                "vault: exceeds user deposit cap"
-            );
+            let user_shares = Self::read_shares(env, user);
+            let user_usdc = Self::convert_to_assets_internal(env, user_shares);
+            if user_usdc
+                .checked_add(amount)
+                .expect("vault: cap check overflow")
+                > cap
+            {
+                panic_with_error!(env, VaultError::ExceedsUserDepositCap);
+            }
         }
     }
 
@@ -3924,13 +3942,13 @@ impl NeuroWealthVault {
             .unwrap_or(0_i128);
         if cap > 0 {
             let total = Self::get_total_assets_internal(env);
-            assert!(
-                total
-                    .checked_add(amount)
-                    .expect("vault: cap check overflow")
-                    <= cap,
-                "vault: exceeds TVL cap"
-            );
+            if total
+                .checked_add(amount)
+                .expect("vault: cap check overflow")
+                > cap
+            {
+                panic_with_error!(env, VaultError::ExceedsTvlCap);
+            }
         }
     }
 

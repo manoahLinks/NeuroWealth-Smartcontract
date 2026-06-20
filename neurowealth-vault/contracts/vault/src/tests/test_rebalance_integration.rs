@@ -695,7 +695,7 @@ fn test_integration_canonical_full_lifecycle_flow() {
     assert_eq!(client.get_shares(&user_a), amount_a);
 
     // --- STEP 2: Deployment to protocol (Blend) ---
-    client.rebalance(&symbol_short!("blend"), &750_i128);
+    client.rebalance(&symbol_short!("blend"), &750_i128, &0_i128);
 
     assert_eq!(client.get_current_protocol(), symbol_short!("blend"));
     assert_eq!(blend_client.supplied(&usdc_token), initial_total);
@@ -703,7 +703,9 @@ fn test_integration_canonical_full_lifecycle_flow() {
 
     // Verify Blend Supply Event
     let supply_events = collect_blend_supply_events(&env);
-    assert!(supply_events.iter().any(|e| e.amount == initial_total));
+    assert!(supply_events
+        .iter()
+        .any(|e| e.amount_actual == initial_total));
 
     // --- STEP 3: Yield Accrual (Price Inflation) ---
     // Simulate 10% yield accrual by minting 2 USDC to vault address
@@ -733,7 +735,7 @@ fn test_integration_canonical_full_lifecycle_flow() {
     assert!(!withdraw_events.is_empty());
 
     // --- STEP 5: Rebalance back to idle ---
-    client.rebalance(&symbol_short!("none"), &0_i128);
+    client.rebalance(&symbol_short!("none"), &0_i128, &0_i128);
 
     assert_eq!(client.get_current_protocol(), symbol_short!("none"));
     assert_eq!(blend_client.supplied(&usdc_token), 0);

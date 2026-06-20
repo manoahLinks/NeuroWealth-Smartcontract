@@ -184,7 +184,7 @@ fn test_emergency_pause_emits_event() {
 // ============================================================================
 
 #[test]
-#[should_panic(expected = "vault: paused")]
+#[should_panic(expected = "Error(Contract, #35)")]
 fn test_upgrade_blocked_while_paused() {
     let env = Env::default();
     env.mock_all_auths();

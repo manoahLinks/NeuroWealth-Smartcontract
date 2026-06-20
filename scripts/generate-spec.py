@@ -331,6 +331,62 @@ class ContractSpecGenerator:
                 ],
                 "returns": None,
                 "requires_auth": True,
+                "state_changing": True,
+                "events": ["BlendPoolConfiguredEvent"]
+            },
+            {
+                "name": "set_dex_pool",
+                "category": "administration",
+                "access": "owner-only",
+                "description": "Set DEX pool address for liquidity deployment",
+                "parameters": [
+                    {"name": "env", "type": "Env"},
+                    {"name": "owner", "type": "Address"},
+                    {"name": "pool_address", "type": "Address", "description": "DEX pool contract address"}
+                ],
+                "returns": None,
+                "requires_auth": True,
+                "state_changing": True,
+                "events": ["DexPoolConfiguredEvent"]
+            },
+            {
+                "name": "set_blend_approval_ttl",
+                "category": "administration",
+                "access": "owner-only",
+                "description": "Set the ledger TTL for Blend token approvals",
+                "parameters": [
+                    {"name": "env", "type": "Env"},
+                    {"name": "owner", "type": "Address"},
+                    {"name": "blend_approval_ttl", "type": "u32", "description": "TTL in ledgers for Blend allowance approvals"}
+                ],
+                "returns": None,
+                "requires_auth": True,
+                "state_changing": True
+            },
+            {
+                "name": "set_approval_ttl",
+                "category": "administration",
+                "access": "owner-only",
+                "description": "Set the ledger TTL for token approvals (alias for set_blend_approval_ttl)",
+                "parameters": [
+                    {"name": "env", "type": "Env"},
+                    {"name": "ttl", "type": "u32", "description": "TTL in ledgers for token allowance approvals"}
+                ],
+                "returns": None,
+                "requires_auth": True,
+                "state_changing": True
+            },
+            {
+                "name": "set_rebalance_cooldown",
+                "category": "administration",
+                "access": "owner-only",
+                "description": "Set minimum ledgers between rebalance calls (0 = no cooldown)",
+                "parameters": [
+                    {"name": "env", "type": "Env"},
+                    {"name": "interval", "type": "u32", "description": "Minimum ledger interval between rebalances"}
+                ],
+                "returns": None,
+                "requires_auth": True,
                 "state_changing": True
             },
         ])
@@ -421,6 +477,11 @@ class ContractSpecGenerator:
             ("preview_withdraw", "assets", "i128", "Preview shares burned for withdrawal amount (ceil)", "query"),
             ("convert_to_shares", "assets", "i128", "Convert asset amount to shares (floor)", "query"),
             ("convert_to_assets", "shares", "i128", "Convert share amount to assets (floor)", "query"),
+            ("get_dex_pool", "", "Option<Address>", "Get DEX pool address if configured", "instance"),
+            ("get_blend_approval_ttl", "", "u32", "Get the configured Blend approval TTL in ledgers", "instance"),
+            ("get_approval_ttl", "", "u32", "Get the configured token approval TTL in ledgers", "instance"),
+            ("get_rebalance_cooldown", "", "u32", "Get the minimum ledger interval between rebalances", "instance"),
+            ("get_last_rebalance_ledger", "", "u32", "Get the ledger sequence of the last successful rebalance", "instance"),
         ]
         
         for name, param, return_type, desc, storage_type in query_functions:
@@ -601,6 +662,57 @@ class ContractSpecGenerator:
                 "fields": [
                     {"name": "old_version", "type": "u32"},
                     {"name": "new_version", "type": "u32"}
+                ]
+            },
+            {
+                "name": "DepositLimitsUpdatedEvent",
+                "topic": "dep_lim",
+                "description": "Emitted when per-transaction deposit limits are updated",
+                "fields": [
+                    {"name": "old_min", "type": "i128"},
+                    {"name": "new_min", "type": "i128"},
+                    {"name": "old_max", "type": "i128"},
+                    {"name": "new_max", "type": "i128"}
+                ]
+            },
+            {
+                "name": "BlendPoolConfiguredEvent",
+                "topic": "blend_cfg",
+                "description": "Emitted when the Blend pool address is configured",
+                "fields": [
+                    {"name": "old_pool", "type": "Option<Address>"},
+                    {"name": "new_pool", "type": "Address"},
+                    {"name": "owner", "type": "Address"}
+                ]
+            },
+            {
+                "name": "DexPoolConfiguredEvent",
+                "topic": "dex_cfg",
+                "description": "Emitted when the DEX pool address is configured",
+                "fields": [
+                    {"name": "old_pool", "type": "Option<Address>"},
+                    {"name": "new_pool", "type": "Address"},
+                    {"name": "owner", "type": "Address"}
+                ]
+            },
+            {
+                "name": "DexSupplyEvent",
+                "topic": "dex_sup",
+                "description": "Emitted when funds are supplied to a DEX liquidity pool",
+                "fields": [
+                    {"name": "asset", "type": "Address"},
+                    {"name": "amount_actual", "type": "i128"},
+                    {"name": "success", "type": "bool"}
+                ]
+            },
+            {
+                "name": "DexWithdrawEvent",
+                "topic": "dex_wd",
+                "description": "Emitted when funds are withdrawn from a DEX liquidity pool",
+                "fields": [
+                    {"name": "asset", "type": "Address"},
+                    {"name": "amount_actual", "type": "i128"},
+                    {"name": "success", "type": "bool"}
                 ]
             },
             {

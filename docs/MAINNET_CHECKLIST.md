@@ -37,6 +37,14 @@ To uphold the principle of least privilege and prevent single points of failure,
     ```
   - Verify that `$owner_addr` != `$agent_addr`.
 
+> **Automated check** — `scripts/verify-deployment.sh` asserts owner address, agent address, and owner ≠ agent separation in one command:
+> ```bash
+> VAULT_CONTRACT_ID=C... NETWORK=mainnet \
+>   OWNER_ADDRESS=G... AGENT_ADDRESS=G... AGENT_SECRET_KEY=S... \
+>   USDC_TOKEN_ADDRESS=G... \
+>   ./scripts/verify-deployment.sh
+> ```
+
 ---
 
 ## 2. Initialization Parameters & Deployment Verification
@@ -113,6 +121,19 @@ To limit financial risk and systemic exposure during the initial stages of launc
   ```
 - [ ] **Verify Settings:** Query getters `get_tvl_cap`, `get_user_deposit_cap`, `get_min_deposit`, and `get_max_deposit` to verify correctness.
 
+> **Automated check** — `scripts/verify-deployment.sh` fetches all four caps and compares them against your declared expected values:
+> ```bash
+> VAULT_CONTRACT_ID=C... NETWORK=mainnet \
+>   OWNER_ADDRESS=G... AGENT_ADDRESS=G... AGENT_SECRET_KEY=S... \
+>   USDC_TOKEN_ADDRESS=G... \
+>   EXPECTED_TVL_CAP=100000000000 \
+>   EXPECTED_USER_DEPOSIT_CAP=5000000000 \
+>   EXPECTED_MIN_DEPOSIT=1000000 \
+>   EXPECTED_MAX_DEPOSIT=5000000000 \
+>   ./scripts/verify-deployment.sh
+> ```
+> The script exits non-zero if any cap does not match or if an `EXPECTED_*` variable is missing.
+
 ---
 
 ## 4. Blend Pool Integration & Address Verification
@@ -141,6 +162,15 @@ The NeuroWealth AI agent deploys assets into Blend lending pools. Registering th
     --pool_address $VERIFIED_BLEND_POOL_ADDRESS
   ```
 - [ ] **Read Verification:** Query `get_blend_pool` on the vault to confirm the registered address matches the verified Blend pool address.
+
+> **Automated check** — set `BLEND_POOL_ADDRESS` and `scripts/verify-deployment.sh` will assert that `get_blend_pool()` returns that exact address (not null):
+> ```bash
+> VAULT_CONTRACT_ID=C... NETWORK=mainnet \
+>   OWNER_ADDRESS=G... AGENT_ADDRESS=G... AGENT_SECRET_KEY=S... \
+>   USDC_TOKEN_ADDRESS=G... \
+>   BLEND_POOL_ADDRESS=C... \
+>   ./scripts/verify-deployment.sh
+> ```
 
 ---
 

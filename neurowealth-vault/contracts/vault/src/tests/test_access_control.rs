@@ -135,7 +135,7 @@ fn test_owner_can_set_blend_pool() {
 
     // set_blend_pool calls BlendPoolClient::get_balance() internally,
     // so blend_pool must be a deployed contract, not a plain address.
-    let (contract_id, _agent, owner, _usdc_token, blend_pool) =
+    let (contract_id, _agent, owner, _usdc_token, _blend_pool) =
         setup_vault_with_token_and_blend(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 

@@ -1,13 +1,13 @@
 //! LibFuzzer harness: random deposit/withdraw sequences against a mock token vault.
 //!
 //! Allowed panics (documented vault validation):
-//! - `vault: amount must be positive`
-//! - `vault: minimum deposit`
-//! - `vault: maximum deposit`
-//! - `vault: user deposit cap exceeded`
-//! - `vault: tvl cap exceeded`
-//! - `vault: insufficient liquidity`
-//! - `vault: shares to mint must be positive`
+//! - `Error(Contract, #37)` — AmountMustBePositive
+//! - `Error(Contract, #38)` — BelowMinimumDeposit
+//! - `Error(Contract, #39)` — MaximumDepositExceeded
+//! - `Error(Contract, #40)` — ExceedsUserDepositCap
+//! - `Error(Contract, #41)` — ExceedsTvlCap
+//! - `Error(Contract, #7)`  — InsufficientLiquidity
+//! - `Error(Contract, #6)`  — SharesToMintMustBePositive
 //! - Token transfer failures (`insufficient balance`, etc.)
 
 #![no_main]
@@ -108,13 +108,13 @@ fn setup(env: &Env) -> (NeuroWealthVaultClient<'_>, Address, Address) {
 
 fn is_allowed_panic(msg: &str) -> bool {
     const ALLOWED: &[&str] = &[
-        "vault: amount must be positive",
-        "vault: minimum deposit",
-        "vault: maximum deposit",
-        "vault: user deposit cap exceeded",
-        "vault: tvl cap exceeded",
-        "vault: insufficient liquidity",
-        "vault: shares to mint must be positive",
+        "Error(Contract, #37)", // AmountMustBePositive
+        "Error(Contract, #38)", // BelowMinimumDeposit
+        "Error(Contract, #39)", // MaximumDepositExceeded
+        "Error(Contract, #40)", // ExceedsUserDepositCap
+        "Error(Contract, #41)", // ExceedsTvlCap
+        "Error(Contract, #7)",  // InsufficientLiquidity
+        "Error(Contract, #6)",  // SharesToMintMustBePositive
         "insufficient balance",
         "amount must be positive",
     ];
@@ -159,8 +159,7 @@ fuzz_target!(|data: &[u8]| {
 
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             if op == 0 {
-                if amount < MIN_DEPOSIT
-                    || amount > MAX_DEPOSIT
+                if !(MIN_DEPOSIT..=MAX_DEPOSIT).contains(&amount)
                     || amount > USER_CAP
                     || amount > TVL_CAP
                 {

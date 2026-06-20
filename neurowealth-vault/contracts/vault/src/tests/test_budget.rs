@@ -103,7 +103,7 @@ fn test_budget_withdraw_with_blend_pull() {
     mint_and_deposit(&env, &client, &usdc_token, &user, amount);
 
     // Move funds into Blend so the withdraw path pulls from it
-    client.rebalance(&symbol_short!("blend"), &500_i128);
+    client.rebalance(&symbol_short!("blend"), &500_i128, &0_i128);
 
     let (cpu, mem) = measure(&env, || {
         client.withdraw(&user, &amount);
@@ -141,7 +141,7 @@ fn test_budget_rebalance_to_blend() {
     mint_and_deposit(&env, &client, &usdc_token, &user, 10_000_000_i128);
 
     let (cpu, mem) = measure(&env, || {
-        client.rebalance(&symbol_short!("blend"), &850_i128);
+        client.rebalance(&symbol_short!("blend"), &850_i128, &0_i128);
     });
 
     std::println!("[budget] rebalance → blend  cpu={cpu}  mem={mem}");
@@ -163,10 +163,10 @@ fn test_budget_rebalance_to_none() {
 
     let user = Address::generate(&env);
     mint_and_deposit(&env, &client, &usdc_token, &user, 10_000_000_i128);
-    client.rebalance(&symbol_short!("blend"), &850_i128);
+    client.rebalance(&symbol_short!("blend"), &850_i128, &0_i128);
 
     let (cpu, mem) = measure(&env, || {
-        client.rebalance(&symbol_short!("none"), &0_i128);
+        client.rebalance(&symbol_short!("none"), &0_i128, &0_i128);
     });
 
     std::println!("[budget] rebalance → none  cpu={cpu}  mem={mem}");

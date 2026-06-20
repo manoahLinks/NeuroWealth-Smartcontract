@@ -292,7 +292,8 @@ fn test_set_deposit_limits_emits_limits_event_with_correct_payload() {
     let new_max = 20_000_000_000_i128;
     client.set_deposit_limits(&new_min, &new_max);
 
-    let limits_events = find_events_by_topic(env.events().all(), &env, TOPIC_DEPOSIT_LIMITS_UPDATED);
+    let limits_events =
+        find_events_by_topic(env.events().all(), &env, TOPIC_DEPOSIT_LIMITS_UPDATED);
     assert!(
         !limits_events.is_empty(),
         "set_deposit_limits should emit a DepositLimitsUpdatedEvent"
@@ -673,7 +674,8 @@ fn test_all_events_have_correct_topics() {
     client.emergency_pause(&owner);
 
     let init_events = find_events_by_topic(env.events().all(), &env, TOPIC_INIT);
-    let limits_events = find_events_by_topic(env.events().all(), &env, TOPIC_DEPOSIT_LIMITS_UPDATED);
+    let limits_events =
+        find_events_by_topic(env.events().all(), &env, TOPIC_DEPOSIT_LIMITS_UPDATED);
     let caps_events = find_events_by_topic(env.events().all(), &env, TOPIC_CAPS_UPDATED);
     let rebalance_events = find_events_by_topic(env.events().all(), &env, TOPIC_REBALANCE);
     let paused_events = find_events_by_topic(env.events().all(), &env, TOPIC_PAUSED);

@@ -16,7 +16,7 @@ use soroban_sdk::{testutils::Address as _, Address, Env};
 /// evaluated against TotalAssets.  A deposit that would push TotalAssets
 /// above the cap is rejected even if TotalDeposits is still below the cap.
 #[test]
-#[should_panic(expected = "vault: exceeds TVL cap")]
+#[should_panic(expected = "Error(Contract, #41)")]
 fn test_tvl_cap_blocks_deposit_after_yield_accrual() {
     let env = Env::default();
     env.mock_all_auths();
@@ -37,7 +37,7 @@ fn test_tvl_cap_blocks_deposit_after_yield_accrual() {
     // Simulate 4 USDC yield  →  TotalAssets = 14, TotalDeposits stays 10
     let yield_amount = 4_000_000_i128;
     token_client.mint(&contract_id, &yield_amount);
-    client.update_total_assets(&agent, &(deposit + yield_amount));
+    client.update_total_assets(&agent, &(deposit + yield_amount), &false, &0);
 
     assert_eq!(client.get_total_assets(), 14_000_000_i128);
     assert_eq!(client.get_total_deposits(), 10_000_000_i128);
@@ -70,7 +70,7 @@ fn test_deposit_accepted_when_total_assets_plus_amount_within_cap() {
     // Accrue 4 USDC yield  →  TotalAssets = 14
     let yield_amount = 4_000_000_i128;
     token_client.mint(&contract_id, &yield_amount);
-    client.update_total_assets(&agent, &14_000_000_i128);
+    client.update_total_assets(&agent, &14_000_000_i128, &false, &0);
 
     // Depositing 5 USDC pushes TotalAssets to 19, still within 20 cap
     let user2 = Address::generate(&env);
@@ -107,7 +107,7 @@ fn test_deposit_yield_withdraw_cap_regression() {
 
     // Step 2: 5 USDC yield credited  →  TotalAssets = 15
     token_client.mint(&contract_id, &5_000_000_i128);
-    client.update_total_assets(&agent, &15_000_000_i128);
+    client.update_total_assets(&agent, &15_000_000_i128, &false, &0);
 
     // Step 3: user1 withdraws 5 USDC  →  TotalAssets shrinks
     client.withdraw(&user1, &5_000_000_i128);
@@ -156,7 +156,7 @@ fn test_total_assets_reflects_yield_while_total_deposits_stays_as_principal() {
     // Accrue 50 % yield
     let yield_amount = 5_000_000_i128;
     token_client.mint(&contract_id, &yield_amount);
-    client.update_total_assets(&agent, &(principal + yield_amount));
+    client.update_total_assets(&agent, &(principal + yield_amount), &false, &0);
 
     // TotalDeposits stays unchanged (tracks principal)
     assert_eq!(

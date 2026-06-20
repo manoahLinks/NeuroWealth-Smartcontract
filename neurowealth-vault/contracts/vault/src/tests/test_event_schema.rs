@@ -8,8 +8,8 @@
 
 use super::utils::*;
 use crate::{
-    AgentUpdatedEvent, AssetsUpdatedEvent, BlendSupplyEvent, BlendWithdrawEvent,
-    DepositEvent, DepositLimitsUpdatedEvent, EmergencyPausedEvent, OwnershipTransferInitiatedEvent,
+    AgentUpdatedEvent, AssetsUpdatedEvent, BlendSupplyEvent, BlendWithdrawEvent, DepositEvent,
+    DepositLimitsUpdatedEvent, EmergencyPausedEvent, OwnershipTransferInitiatedEvent,
     OwnershipTransferredEvent, ProtocolChangedEvent, RebalanceEvent, TvlCapUpdatedEvent,
     UserDepositCapUpdatedEvent, VaultInitializedEvent, VaultPausedEvent, VaultUnpausedEvent,
     WithdrawEvent, TOPIC_AGENT_UPDATED, TOPIC_ASSETS_UPDATED, TOPIC_BLEND_SUPPLY,
@@ -130,7 +130,8 @@ fn test_event_schema_administrative_events() {
     let new_max = 20_000_000_000_i128;
     client.set_deposit_limits(&new_min, &new_max);
 
-    let limits_events = find_events_by_topic(env.events().all(), &env, TOPIC_DEPOSIT_LIMITS_UPDATED);
+    let limits_events =
+        find_events_by_topic(env.events().all(), &env, TOPIC_DEPOSIT_LIMITS_UPDATED);
     assert_eq!(
         limits_events.len(),
         1,
@@ -558,7 +559,7 @@ fn test_all_event_topics_schema_compliance() {
                     description
                 );
             }
-            "emergency" => {
+            "emerg" => {
                 let events = find_events_by_topic(env.events().all(), &env, TOPIC_EMERGENCY_PAUSED);
                 assert!(
                     !events.is_empty(),

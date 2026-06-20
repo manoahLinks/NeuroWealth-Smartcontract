@@ -25,7 +25,9 @@ jobs:
   generate-and-validate-spec:
     name: Generate & Validate Contract Spec
     runs-on: ubuntu-latest
-    
+    permissions:
+      pull-requests: write
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -83,7 +85,7 @@ jobs:
           EOF
       
       - name: 📦 Upload spec as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: contract-spec
           path: contract-spec.json
@@ -106,6 +108,7 @@ jobs:
       
       - name: 📋 Comment PR with spec summary
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         uses: actions/github-script@v6
         with:
           script: |
