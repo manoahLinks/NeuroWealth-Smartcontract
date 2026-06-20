@@ -280,6 +280,7 @@ jobs:
           CARGO_TARGET_DIR: ${{ runner.temp }}/neurowealth-target
         run: |
           RUSTFLAGS="-C target-cpu=mvp" cargo build \
+            -p neurowealth-vault \
             --target wasm32-unknown-unknown \
             --release
 
