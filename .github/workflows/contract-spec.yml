@@ -9,6 +9,7 @@ on:
       - 'neurowealth-vault/contracts/vault/src/**'
       - 'scripts/generate-spec.py'
       - 'scripts/validate-spec.py'
+      - 'scripts/generate-client.js'
       - '.github/workflows/contract-spec.yml'
   pull_request:
     branches:
@@ -19,6 +20,8 @@ on:
       - 'contract-spec.json'
       - 'scripts/generate-spec.py'
       - 'scripts/validate-spec.py'
+      - 'scripts/generate-client.js'
+      - 'packages/vault-client/src/generated/vault.ts'
   workflow_dispatch:
 
 jobs:
@@ -84,11 +87,43 @@ jobs:
           print(f"\n📈 Documentation coverage: {coverage:.1f}%")
           EOF
       
+      - name: 🟦 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 🔧 Generate TypeScript client
+        run: |
+          echo "Generating TypeScript client from contract-spec.json..."
+          node scripts/generate-client.js
+
+      - name: 🔍 Check TypeScript client is up-to-date
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Checking that generated TypeScript client matches current spec..."
+          if git diff --quiet packages/vault-client/src/generated/vault.ts; then
+            echo "✅ TypeScript client is up-to-date"
+          else
+            echo ""
+            echo "❌ Generated TypeScript client is stale!"
+            echo ""
+            echo "The file packages/vault-client/src/generated/vault.ts does not match"
+            echo "what would be generated from the current contract-spec.json."
+            echo ""
+            echo "Run the following command and commit the result:"
+            echo "  node scripts/generate-client.js"
+            echo ""
+            git diff packages/vault-client/src/generated/vault.ts
+            exit 1
+          fi
+
       - name: 📦 Upload spec as artifact
         uses: actions/upload-artifact@v4
         with:
           name: contract-spec
-          path: contract-spec.json
+          path: |
+            contract-spec.json
+            packages/vault-client/src/generated/vault.ts
           retention-days: 30
       
       - name: 💾 Commit spec if changed
@@ -103,6 +138,15 @@ jobs:
             echo "📝 Spec updated, committing changes..."
             git add contract-spec.json
             git commit -m "chore: update contract specification [skip ci]"
+            git push
+          fi
+
+          if git diff --quiet packages/vault-client/src/generated/vault.ts; then
+            echo "✅ TypeScript client unchanged"
+          else
+            echo "📝 TypeScript client updated, committing changes..."
+            git add packages/vault-client/src/generated/vault.ts
+            git commit -m "chore: regenerate TypeScript vault client [skip ci]"
             git push
           fi
       
@@ -129,6 +173,7 @@ jobs:
             | Spec Version | ${spec.version} |
             
             ✅ Spec generation and validation completed successfully!
+            🟦 TypeScript client regenerated at \`packages/vault-client/src/generated/vault.ts\`
             
             [Download full spec](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
             

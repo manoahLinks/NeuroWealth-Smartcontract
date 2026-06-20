@@ -1,0 +1,59 @@
+/**
+ * @neurowealth/vault-client
+ *
+ * Auto-generated typed bindings for the NeuroWealth Vault Soroban contract.
+ * Re-export everything from the generated file so consumers import from one place.
+ *
+ * @example
+ * import { VaultClient, UserInfo, VaultErrorCode, DECIMAL_PLACES } from '@neurowealth/vault-client';
+ */
+
+export {
+  // Main client class
+  VaultClient,
+
+  // Option / result types
+  type TxResult,
+  type InvokeOptions,
+
+  // Struct types
+  type UserInfo,
+
+  // Event payload interfaces
+  type VaultInitializedEvent,
+  type DepositEvent,
+  type WithdrawEvent,
+  type RebalanceEvent,
+  type ProtocolChangedEvent,
+  type VaultPausedEvent,
+  type VaultUnpausedEvent,
+  type EmergencyPausedEvent,
+  type TvlCapUpdatedEvent,
+  type UserDepositCapUpdatedEvent,
+  type CapsUpdatedEvent,
+  type LimitsUpdatedEvent,
+  type AgentUpdatedEvent,
+  type OwnershipTransferInitiatedEvent,
+  type OwnershipTransferredEvent,
+  type OwnershipTransferCancelledEvent,
+  type AssetsUpdatedEvent,
+  type UpgradedEvent,
+  type DepositLimitsUpdatedEvent,
+  type BlendPoolConfiguredEvent,
+  type DexPoolConfiguredEvent,
+  type DexSupplyEvent,
+  type DexWithdrawEvent,
+  type BlendSupplyEvent,
+  type BlendWithdrawEvent,
+  type RebalanceFailedEvent,
+
+  // Error codes
+  VaultErrorCode,
+  type VaultErrorCode as VaultErrorCodeType,
+
+  // Constants
+  DEFAULT_USER_DEPOSIT_CAP,
+  DEFAULT_MIN_DEPOSIT,
+  DEFAULT_MAX_DEPOSIT,
+  DECIMAL_PLACES,
+} from './generated/vault';

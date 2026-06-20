@@ -8,8 +8,10 @@ The specification generation system consists of:
 
 1. **Generator Script** (`generate-spec.py`) - Parses Rust contract source and generates `contract-spec.json`
 2. **Validation Script** (`validate-spec.py`) - Ensures spec completeness and accuracy
-3. **CI Workflow** (`.github/workflows/contract-spec.yml`) - Automatically generates and validates spec on commits
-4. **JSON Specification** (`contract-spec.json`) - The generated specification for client use
+3. **Client Generator** (`generate-client.js`) - Reads `contract-spec.json` and emits a fully-typed TypeScript client
+4. **CI Workflow** (`.github/workflows/contract-spec.yml`) - Automatically generates and validates spec and client on commits
+5. **JSON Specification** (`contract-spec.json`) - The generated specification for client use
+6. **TypeScript Client** (`packages/vault-client/`) - Auto-generated typed bindings for `@stellar/stellar-sdk` consumers
 
 ## Quick Start
 
@@ -40,6 +42,30 @@ Validates that:
 
 ```bash
 python3 scripts/generate-spec.py && python3 scripts/validate-spec.py
+```
+
+### Generate TypeScript Client
+
+Reads `contract-spec.json` and writes a typed TypeScript client to
+`packages/vault-client/src/generated/vault.ts`:
+
+```bash
+node scripts/generate-client.js
+```
+
+Optional flags:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--spec <path>` | `contract-spec.json` | Path to spec file |
+| `--out <path>` | `packages/vault-client/src/generated/vault.ts` | Output path |
+
+### Full pipeline (spec → validate → client)
+
+```bash
+python3 scripts/generate-spec.py && \
+python3 scripts/validate-spec.py && \
+node scripts/generate-client.js
 ```
 
 ## Specification Structure
@@ -215,21 +241,26 @@ AI agents should monitor `DepositEvent` to detect new deposits and trigger yield
 
 ## CI/CD Integration
 
-The spec is automatically:
+The spec and TypeScript client are automatically:
 
-1. **Generated** on every commit that changes contract code
+1. **Generated** on every commit that changes contract code or the generator scripts
 2. **Validated** to ensure spec ↔ implementation consistency
-3. **Uploaded** as a build artifact
-4. **Committed** back to the repo (on main branch)
-5. **Posted** as a PR comment (on pull requests)
+3. **Staleness-checked** on PRs — CI fails if the generated client is out of sync with the spec
+4. **Uploaded** as build artifacts
+5. **Committed** back to the repo (on main branch, for both spec and client)
+6. **Posted** as a PR comment (on pull requests)
 
 ### CI Workflow
 
 The workflow runs on:
 
-- **Push** to `main` or `develop` branches when contract files change
-- **Pull Requests** to `main` or `develop` when spec changes
+- **Push** to `main` or `develop` branches when contract files or generator scripts change
+- **Pull Requests** to `main` or `develop` when spec or generated client change
 - **Manual trigger** via `workflow_dispatch`
+
+The staleness check ensures that any PR touching `contract-spec.json` must also include
+a regenerated `packages/vault-client/src/generated/vault.ts`. CI will print a diff and
+exit non-zero if the generated file is stale.
 
 To manually trigger:
 
@@ -250,9 +281,14 @@ The specification is automatically generated from the contract source code. To u
    ```bash
    python3 scripts/validate-spec.py
    ```
-4. **Commit** the updated `contract-spec.json`
+4. **Regenerate the TypeScript client**:
+   ```bash
+   node scripts/generate-client.js
+   ```
+5. **Commit** the updated `contract-spec.json` **and** `packages/vault-client/src/generated/vault.ts`
 
-The spec should always be kept in sync with the contract implementation. The validation script ensures this.
+Both files must be committed together. CI will reject a PR that updates the spec without
+also updating the generated client.
 
 ## Schema Reference
 
