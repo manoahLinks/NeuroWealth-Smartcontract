@@ -3,7 +3,7 @@
 //! Uses the in-env mock pool that implements the same entrypoints expected from a
 //! Stellar DEX liquidity pool (`add_liquidity`, `remove_liquidity`, `balance`).
 //! For a live network smoke test, invoke these against `DEX_POOL_ADDRESS` via the
-//! Soroban CLI (see `DEX_INTEGRATION.md`).
+//! Soroban CLI (see `docs/DEX_INTEGRATION.md`).
 
 #![cfg(all(test, feature = "dex-devnet"))]
 

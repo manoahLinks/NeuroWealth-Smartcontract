@@ -2,7 +2,7 @@
 //!
 //! Uses the in-env mock pool that implements the same entrypoints as mainnet Blend v2.
 //! For a live network smoke test, invoke `balance`, `submit_with_allowance`, and `submit`
-//! against `BLEND_POOL_ADDRESS` via the Soroban CLI (see `BLEND_INTEGRATION_RESEARCH.md`).
+//! against `BLEND_POOL_ADDRESS` via the Soroban CLI (see `docs/BLEND_INTEGRATION_RESEARCH.md`).
 
 #![cfg(all(test, feature = "blend-devnet"))]
 

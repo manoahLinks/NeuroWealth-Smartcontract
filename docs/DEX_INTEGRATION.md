@@ -114,7 +114,7 @@ On every DEX leg, `min_out` is enforced by `require_min_out`:
 | `DexWithdrawEvent` | `dex_wd` | USDC withdrawn from the DEX pool |
 | `DexPoolConfiguredEvent` | `dex_cfg` | DEX pool address configured |
 
-See [`EVENTS.md`](EVENTS.md) for full schemas.
+See [`EVENTS.md`](../EVENTS.md) for full schemas.
 
 ## Testing
 

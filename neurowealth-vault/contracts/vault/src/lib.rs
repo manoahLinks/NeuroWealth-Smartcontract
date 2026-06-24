@@ -726,7 +726,7 @@ pub struct UserInfo {
 /// - `submit(from, to, requests)` — withdraw (request type 1)
 /// - `balance(asset, user)` — supplied balance for the vault position
 ///
-/// See `BLEND_INTEGRATION_RESEARCH.md` and
+/// See `docs/BLEND_INTEGRATION_RESEARCH.md` and
 /// https://docs.blend.capital/tech-docs/core-contracts/lending-pool/fund-management
 struct BlendPoolClient;
 
@@ -917,7 +917,7 @@ impl BlendPoolClient {
 /// Actual amounts are derived from the vault's USDC balance delta, mirroring the
 /// Blend integration so partial fills (slippage) are observable on-chain.
 ///
-/// See `DEX_INTEGRATION.md` for the full interface research and rationale.
+/// See `docs/DEX_INTEGRATION.md` for the full interface research and rationale.
 struct DexPoolClient;
 
 impl DexPoolClient {

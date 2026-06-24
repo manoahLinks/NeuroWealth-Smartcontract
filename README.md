@@ -91,9 +91,11 @@ NeuroWealth-Smartcontract/
 │   ├── README-E2E.md           # E2E test guide
 │   └── README-SPEC.md          # Spec generation guide
 ├── docs/
-│   ├── MAINNET_CHECKLIST.md    # Pre-mainnet sign-off checklist
-│   ├── UPGRADE_MIGRATION.md    # Contract upgrade guide
-│   └── WASM_SIZE.md            # WASM size tracking
+│   ├── BLEND_INTEGRATION_RESEARCH.md  # Blend protocol integration research
+│   ├── DEX_INTEGRATION.md            # DEX liquidity pool integration research
+│   ├── MAINNET_CHECKLIST.md          # Pre-mainnet sign-off checklist
+│   ├── UPGRADE_MIGRATION.md          # Contract upgrade guide
+│   └── WASM_SIZE.md                  # WASM size tracking
 ├── .env.devnet.template        # Environment variable template
 ├── deny.toml                   # cargo-deny dependency audit config
 ├── ARCHITECTURE.md             # Storage layout, data flows, invariants

@@ -19,7 +19,7 @@ This changelog is tied to the vault contract `Version` storage value. Each relea
     `DexPoolConfiguredEvent` (`dex_cfg`).
   - New errors: `DexPoolNotConfigured` (#46), `OnlyOwnerCanSetDexPool` (#47).
   - New `dex-devnet` test feature flag. No `Version` bump (additive, pre-mainnet).
-  - See `DEX_INTEGRATION.md`.
+  - See `docs/DEX_INTEGRATION.md`.
 
 ## [1]
 - Initial vault implementation with ERC-4626-inspired share accounting.
