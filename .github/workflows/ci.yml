@@ -38,6 +38,9 @@ jobs:
           - name: "Build WASM"
             step: "build-wasm"
             working_directory: "neurowealth-vault"
+          - name: "No Bare Panic Check"
+            step: "no-bare-panic"
+            working_directory: "."
 
     steps:
       - name: Checkout code
@@ -143,6 +146,10 @@ jobs:
               # Export the WASM path for the artifact upload step.
               echo "WASM_FILE=$WASM_FILE" >> "$GITHUB_ENV"
               ;;
+            no-bare-panic)
+              bash scripts/check-no-bare-panic.sh \
+                neurowealth-vault/contracts/vault/src
+              ;;
             *)
               echo "Unknown step: ${{ matrix.step }}" >&2
               exit 1
@@ -175,6 +182,16 @@ jobs:
           # Respect the [graph] settings in deny.toml instead of forcing
           # --all-features (the action's default).
           arguments: ""
+
+  readme-check:
+    name: README Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate README
+        run: bash scripts/check-readme.sh .
 
   changes:
     name: Detect changes

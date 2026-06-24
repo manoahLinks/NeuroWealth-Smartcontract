@@ -110,6 +110,10 @@ Keep artifacts but remove identities:
 On-chain testnet state (deployed contracts, transactions) cannot be deleted.
 The Stellar testnet is periodically reset by the SDF.
 
+For a full explanation of what each artifact file contains, which outputs are
+safe to delete, and how to restore from CI artifact bundles, see
+[`docs/E2E_ARTIFACT_LIFECYCLE.md`](../docs/E2E_ARTIFACT_LIFECYCLE.md).
+
 ## CI Integration
 
 The E2E tests run via `.github/workflows/e2e-devnet.yml`:
