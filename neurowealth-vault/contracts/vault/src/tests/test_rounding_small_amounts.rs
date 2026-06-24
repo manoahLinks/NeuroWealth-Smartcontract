@@ -31,10 +31,10 @@ fn test_tiny_deposit_mints_nonzero_shares() {
     let (contract_id, _agent, _owner, usdc_token) = setup_vault_with_token(&env);
     let client = NeuroWealthVaultClient::new(&env, &contract_id);
 
-    // Preview formula for 1 stroop on empty vault: bootstrap returns amount = 1.
+    // Preview formula for 1 stroop on empty vault: bootstrap path returns assets = 1.
     // The actual deposit is blocked by min-deposit (1 USDC), but the formula is correct.
     let preview_stroop = client.preview_deposit_to_shares(&1_i128);
-    assert!(preview_stroop >= 0, "Preview must not be negative");
+    assert_eq!(preview_stroop, 1_i128, "Bootstrap: 1 stroop previews as 1 share (1:1)");
 
     // Smallest actually-depositable amount: 1 USDC = 1_000_000 i128.
     // On bootstrap it mints exactly 1_000_000 shares (1:1 ratio).
@@ -44,13 +44,10 @@ fn test_tiny_deposit_mints_nonzero_shares() {
     assert!(shares > 0, "Bootstrap deposit must mint non-zero shares");
     assert_eq!(shares, USDC, "Bootstrap: shares == deposited assets (1:1)");
 
-    // After bootstrap, verify preview for 1 stroop floors correctly.
-    // floor(1 * 1_000_000 / 1_000_000) = 1 — still non-negative.
+    // After bootstrap: total_shares = 1_000_000, total_assets = 1_000_000.
+    // floor(1 * 1_000_000 / 1_000_000) = 1 — preview still returns 1.
     let preview_stroop_after = client.preview_deposit_to_shares(&1_i128);
-    assert!(
-        preview_stroop_after >= 0,
-        "Post-bootstrap preview must not be negative"
-    );
+    assert_eq!(preview_stroop_after, 1_i128, "Post-bootstrap: floor(1 * shares/assets) = 1");
 }
 
 // ============================================================================
@@ -188,8 +185,8 @@ fn test_precision_floor_share_conversion() {
     // For amounts that preview to 0, the deposit panics with #6.
     // We verify the formula holds; we do NOT attempt the deposit here because
     // the min-deposit guard may fire before the share check.
-    // The key invariant: previewed == floor(amount * shares / assets).
-    assert!(previewed >= 0, "Preview result must never be negative");
+    // The key invariant: previewed == floor(1 * shares / assets) == 0.
+    assert_eq!(previewed, 0_i128, "floor(1 * 10M / 11M) = 0: sub-USDC deposit at inflated price mints no shares");
 }
 
 // ============================================================================

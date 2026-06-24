@@ -10,7 +10,7 @@ use soroban_sdk::{testutils::Address as _, Address, Env};
 const USDC: i128 = 1_000_000;
 
 // ============================================================================
-// Test 1: 100 deposits of 10 USDC with cap=1000 USDC
+// Test 1: 10 deposits of 100 USDC with cap=1000 USDC
 // ============================================================================
 
 /// After exactly 10 deposits of 100 USDC (TVL == cap), the 11th must be rejected.

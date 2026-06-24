@@ -18,6 +18,7 @@ stateDiagram-v2
     Rebalancing --> Active : rebalance() completes
 
     Active --> Emergency : owner calls emergency_pause()
+    Paused --> Emergency : owner calls emergency_pause()
     Emergency --> Active : owner resolves + calls unpause()
 ```
 
@@ -31,7 +32,8 @@ stateDiagram-v2
 | `Paused`    | `Active`    | `unpause()`                   | Owner   | Vault is paused                           | —                                    |
 | `Active`    | `Rebalancing` | `rebalance()`               | Agent   | Not paused; cooldown elapsed              | None (vault accepts deposits during) |
 | `Rebalancing` | `Active`  | `rebalance()` returns         | Agent   | Automatic on function return              | —                                    |
-| `Active`    | `Emergency` | `emergency_pause()`           | Owner   | Not already in emergency pause            | Deposits, withdrawals blocked after  |
+| `Active`    | `Emergency` | `emergency_pause()`           | Owner   | Vault not already in emergency            | Deposits, withdrawals blocked after  |
+| `Paused`    | `Emergency` | `emergency_pause()`           | Owner   | Vault is paused (re-sets same flag)       | —                                    |
 | `Emergency` | `Active`    | owner resolves + `unpause()`  | Owner   | Emergency condition manually cleared      | —                                    |
 
 ---
