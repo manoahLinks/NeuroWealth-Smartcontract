@@ -26,6 +26,7 @@ mod test_rebalance_cooldown;
 mod test_rebalance_integration;
 mod test_rounding_math;
 mod test_shares;
+mod test_strategy_switch_low_liquidity;
 mod test_total_assets_cap;
 mod test_ttl;
 mod test_update_total_assets_blend;
