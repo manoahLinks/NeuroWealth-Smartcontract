@@ -121,7 +121,7 @@ fn test_serial_deposits_cap_boundary_off_by_one() {
 }
 
 // ============================================================================
-// Test 4: 1000 tiny deposits do not overflow and produce correct TVL
+// Test 4: Serial deposits do not overflow and produce correct TVL
 // ============================================================================
 
 /// 20 deposits of 5 USDC each with cap=101 USDC.

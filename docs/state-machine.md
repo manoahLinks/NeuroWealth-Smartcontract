@@ -116,6 +116,12 @@ regular `pause()` path; unauthorized callers receive
 remediation (off-chain or via upgrade), then calls `unpause()` to return
 the vault to `Active`.
 
+> **Implementation note:** Paused and Emergency states share the same on-chain
+> storage flag (`DataKey::Paused = true`). Off-chain systems cannot distinguish
+> between a regular pause and an emergency pause by inspecting storage alone —
+> they must check emitted event topics (`"pause"` vs `"emergency_pause"`) to
+> determine which path was taken.
+
 ---
 
 ## Storage Keys Referenced
