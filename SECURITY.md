@@ -106,6 +106,133 @@ The contract owner can upgrade the contract code. This introduces:
 5. **TVL Caps**: Limits total exposure
 6. **Pausable**: Emergency stop functionality
 
+## Owner-Compromise Response Runbook
+
+If the owner keypair is suspected or confirmed to be compromised, follow this
+sequence immediately. Every step that requires owner auth is marked **[owner]**.
+
+### Step 1 — Pause the vault (within minutes)
+
+The single fastest action to protect user funds is an emergency pause. No new
+deposits or withdrawals can execute while the vault is paused.
+
+```bash
+stellar contract invoke \
+  --id $VAULT_CONTRACT_ID \
+  --source <OWNER_SECRET_KEY> \
+  --network mainnet \
+  -- pause
+```
+
+**Requires**: owner auth **[owner]**
+
+If the owner key is already confirmed compromised and you cannot sign with it,
+the authorized AI agent can also trigger `emergency_pause`:
+
+```bash
+stellar contract invoke \
+  --id $VAULT_CONTRACT_ID \
+  --source <AGENT_SECRET_KEY> \
+  --network mainnet \
+  -- emergency_pause
+```
+
+**Requires**: agent auth (use this path only if owner key is inaccessible).
+
+### Step 2 — Assess exposure
+
+Before taking further action, determine what the attacker could have done or
+is still doing:
+
+| Check | Command |
+|---|---|
+| Current paused state | `stellar contract invoke --id $VAULT_CONTRACT_ID --network mainnet -- get_paused` |
+| Current owner address | `stellar contract invoke --id $VAULT_CONTRACT_ID --network mainnet -- get_owner` |
+| Current agent address | `stellar contract invoke --id $VAULT_CONTRACT_ID --network mainnet -- get_agent` |
+| Active protocol (idle/blend/dex) | `stellar contract invoke --id $VAULT_CONTRACT_ID --network mainnet -- get_current_protocol` |
+| TVL cap | `stellar contract invoke --id $VAULT_CONTRACT_ID --network mainnet -- get_tvl_cap` |
+
+Owner-only actions an attacker with the key could have taken:
+- Called `set_agent` to replace the AI agent with a malicious address.
+- Called `set_blend_pool` or `set_dex_pool` to point the vault at a drain contract.
+- Called `set_caps` to raise or remove deposit limits.
+- Initiated `transfer_ownership` to a new address they control.
+
+**The attacker cannot directly withdraw user funds** — withdrawals require
+the *user's* own auth signature, not the owner key.
+
+### Step 3 — Rotate the owner key
+
+Generate a new owner keypair on an air-gapped machine. Then initiate the
+two-step ownership transfer from the current (compromised) key while you still
+control it:
+
+```bash
+# Step 3a — propose new owner [owner]
+stellar contract invoke \
+  --id $VAULT_CONTRACT_ID \
+  --source <CURRENT_OWNER_SECRET_KEY> \
+  --network mainnet \
+  -- transfer_ownership \
+  --new_owner <NEW_OWNER_ADDRESS>
+
+# Step 3b — accept from the new keypair [pending owner]
+stellar contract invoke \
+  --id $VAULT_CONTRACT_ID \
+  --source <NEW_OWNER_SECRET_KEY> \
+  --network mainnet \
+  -- accept_ownership
+```
+
+If the compromised key has already been used to initiate an attacker-controlled
+`transfer_ownership`, the pending owner is stored under `DataKey::PendingOwner`.
+You must call `accept_ownership` from the *legitimate* new owner before the
+attacker does. Check `DataKey::PendingOwner` on-chain immediately.
+
+### Step 4 — Revert any attacker configuration changes
+
+Once the new owner key is in place, audit and reset all owner-controlled state:
+
+```bash
+# Reset agent to the legitimate AI agent address [owner]
+stellar contract invoke --id $VAULT_CONTRACT_ID --source <NEW_OWNER_KEY> \
+  --network mainnet -- set_agent --agent <LEGITIMATE_AGENT_ADDRESS>
+
+# Reset pool addresses to audited contracts [owner]
+stellar contract invoke --id $VAULT_CONTRACT_ID --source <NEW_OWNER_KEY> \
+  --network mainnet -- set_blend_pool --pool_address <AUDITED_BLEND_POOL>
+
+stellar contract invoke --id $VAULT_CONTRACT_ID --source <NEW_OWNER_KEY> \
+  --network mainnet -- set_dex_pool --pool_address <AUDITED_DEX_POOL>
+
+# Restore caps to pre-incident values [owner]
+stellar contract invoke --id $VAULT_CONTRACT_ID --source <NEW_OWNER_KEY> \
+  --network mainnet -- set_caps \
+  --user_deposit_cap <ORIGINAL_CAP> --tvl_cap <ORIGINAL_TVL_CAP>
+```
+
+### Step 5 — Restore safe operation
+
+Only unpause once Steps 1–4 are fully complete and verified.
+
+```bash
+stellar contract invoke \
+  --id $VAULT_CONTRACT_ID \
+  --source <NEW_OWNER_SECRET_KEY> \
+  --network mainnet \
+  -- unpause
+```
+
+**Requires**: owner auth **[owner]**
+
+### Step 6 — Post-incident
+
+- Revoke and rotate all credentials that were co-located with the compromised key.
+- Publish a post-mortem within 72 hours.
+- Consider migrating to a multi-sig owner address before resuming normal operations.
+
+---
+
 ## Audit & Mainnet Deployment Checklist
 
 Before any mainnet deployment, you must refer to and complete the formal [Mainnet Deployment Checklist](docs/MAINNET_CHECKLIST.md).

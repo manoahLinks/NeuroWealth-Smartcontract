@@ -1,13 +1,73 @@
-# DEX Liquidity Pool Integration Research
+# DEX Liquidity Pool Integration
 
 ## Overview
 
-This document records the research and design for integrating the NeuroWealth
-Vault with a Stellar DEX liquidity pool, alongside the existing Blend Protocol
-integration. It implements the on-chain side of the **Balanced** and **Growth**
-strategies described in the README (lending + DEX liquidity provision).
+This document describes how the NeuroWealth Vault integrates with a Stellar DEX
+liquidity pool for the **Balanced** and **Growth** yield strategies. It covers
+the on-chain interface, strategy switching behaviour, integration assumptions,
+and operational considerations for external integrators.
 
 It mirrors the patterns established in [`BLEND_INTEGRATION_RESEARCH.md`](BLEND_INTEGRATION_RESEARCH.md).
+
+## Strategy Context
+
+The vault supports three yield protocols selectable by the AI agent:
+
+| Protocol symbol | Strategy | Behaviour |
+|---|---|---|
+| `"none"` | Conservative (idle) | Funds held as USDC inside the vault. No yield deployed. |
+| `"blend"` | Conservative / Balanced | USDC supplied to Blend lending pool; yield accrues via bToken exchange rate. |
+| `"dex"` | Balanced / Growth | USDC deployed to a DEX liquidity pool via a single-asset adapter. |
+
+The agent calls `rebalance(protocol, expected_apy, min_out)` to switch. Only
+one protocol is active at a time; switching exits the current protocol first,
+then enters the new one. If either leg fails, the rebalance aborts via
+`RebalanceFailedEvent` and the active protocol is unchanged.
+
+## Integration Assumptions
+
+The following assumptions must hold for the DEX integration to function correctly.
+Integrators deploying a production adapter should validate each one before going live:
+
+1. **Single-asset adapter contract.** Real Stellar AMMs (Soroswap, Aquarius,
+   Comet) are two-asset constant-product pools. Deploying single-sided USDC
+   requires a thin adapter that wraps the AMM's `deposit`/`withdraw` and exposes
+   the three entrypoints below. The vault is intentionally decoupled from AMM
+   specifics and calls only `add_liquidity`, `remove_liquidity`, and `balance`.
+
+2. **USDC is the sole asset the vault touches.** The adapter is responsible for
+   all swap legs, zaps, or LP share conversions. The vault measures outcome by
+   its own USDC balance delta, not by any value the adapter reports. A
+   misreporting adapter cannot inflate vault accounting.
+
+3. **Atomic pool operations.** `add_liquidity` and `remove_liquidity` must
+   complete atomically within a single Soroban invocation. Partial fills that
+   silently succeed are indistinguishable from full fills and will lead to
+   accounting drift; the adapter must either fill in full or revert.
+
+4. **`balance` returns the current USDC-equivalent position.** The vault reads
+   `balance(asset, user)` to verify that the deployment succeeded. If the pool
+   quotes LP shares rather than USDC, the adapter must convert internally.
+
+5. **`transfer_from` authorisation is handled by the vault.** The vault
+   pre-approves the pool for the supply amount with a TTL equal to
+   `DataKey::DexApprovalTtl`. The adapter must not modify or re-use that
+   approval for any purpose other than the requested supply.
+
+6. **`min_out` is treated as a hard floor.** If the pool cannot realise at least
+   `min_out` USDC on a supply or withdraw leg, the vault reverts with
+   `VaultError::MinOutNotMet` (#42). Pools that silently under-fill will trigger
+   this revert. Pass `min_out = 0` only in tests or when slippage is genuinely
+   irrelevant.
+
+7. **The pool address must be registered before first use.** The owner calls
+   `set_dex_pool(owner, pool_address)` once. The vault probes `balance` at
+   registration time; a non-conforming address reverts at that point, not at
+   first rebalance.
+
+8. **Liquidity routing is exit-first.** When switching from Blend to DEX, the
+   vault withdraws all Blend funds and holds them idle before deploying to DEX.
+   The vault does not support simultaneous multi-protocol deployment.
 
 ## Soroban DEX Interface
 
@@ -157,6 +217,13 @@ soroban contract invoke --id "$DEX_POOL" --network testnet -- balance \
 7. ✅ `dex-devnet` feature flag for testnet smoke tests
 8. ⏳ Measure gas on testnet
 9. ⏳ Production AMM adapter (two-asset pool zap) — out of scope for this issue
+
+## Further Reading
+
+- [`BLEND_INTEGRATION_RESEARCH.md`](BLEND_INTEGRATION_RESEARCH.md) — Blend protocol integration, mirrors the DEX approach
+- [`UPGRADE_MIGRATION.md`](UPGRADE_MIGRATION.md) — how `DataKey::DexPool` and `DexApprovalTtl` survive contract upgrades
+- [`../EVENTS.md`](../EVENTS.md) — full `DexSupplyEvent`, `DexWithdrawEvent`, `DexPoolConfiguredEvent` schemas
+- [`../SECURITY.md`](../SECURITY.md) — slippage, incomplete-exit, and pool-validation threat analysis
 
 ## References
 
