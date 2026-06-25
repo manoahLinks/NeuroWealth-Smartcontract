@@ -33,6 +33,7 @@ mod test_total_assets_cap;
 mod test_ttl;
 mod test_tvl_cap_serial;
 mod test_update_total_assets_blend;
+mod test_upgrade_compatibility;
 mod test_withdraw;
 mod test_yield;
 mod utils;
